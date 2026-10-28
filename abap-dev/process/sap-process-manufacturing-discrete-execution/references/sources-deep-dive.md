@@ -1,0 +1,24 @@
+# Sources — deep-dive.md (BJ5 execution, functional consulting depth)
+
+- SAP Help — Confirmation (order-level vs operation-level, status PCNF/CNF): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/eef9e4b592c845fa8c9a444b9d851aa8.html
+- SAP Help — Milestone Confirmation: https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/2b04b753128eb44ce10000000a174cb4.html
+- SAP Help — Confirmations in Collective Orders: https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/d321965c0a5c47bebc58f5ffa80ebc6a.html
+- SAP Help — Confirmation of Process and Production Orders (mass processing): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/3100b753128eb44ce10000000a174cb4.html
+- SAP Help — Goods Movements for Confirmation (backflush indicator precedence, automatic GR, serial number restriction): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/24dfc86a298a47b8b51d7d3edd3477a5.html
+- SAP Help — Withdrawing Material Components (movement type 261): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/c803b753128eb44ce10000000a174cb4.html
+- SAP Help — Canceling Confirmations: https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/8878c00ccaf643598c6db60643adba41.html
+- SAP Help — Backflushing (Repetitive Manufacturing completion-confirmation terminology): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/3268b6531de6b64ce10000000a174cb4.html
+- SAP Help — Confirm Production Operation (F3069) — serial number handling not supported: https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/34982f3146a141a9aa05ab13b1edb19a.html
+- SAP Help — Confirm Production Order Operation (CO11N) — serial number handling not supported: https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/24f66b49e1b445c18fd31ebf244eaa15.html
+- SAP Help — OData API: Production Order Confirmation (API_PROD_ORDER_CONFIRMATION_2_SRV) — constraints incl. serial number handling not supported: https://help.sap.com/docs/SAP_S4HANA_CLOUD/d35113ee62644d3abee1aaec148291d9/e77b762e243b4045ad1f1f048f6aab87.html
+- SAP Help — How to Reprocess Goods Movements (COGI): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/22a46990f1c54ff6bc5d0c0c910f2514.html
+- SAP Help — Goods Movement Overview (Pick Components CO27, Reprocess Goods Movements COGI): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/95ffb753128eb44ce10000000a174cb4.html
+- SAP Help — Confirmation status change on TECO/PCNF/CNF context (Has Open Main Work): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2dfa044a255f49e89a3050daf3c61c11/3dcbc1bfa4444cf28a968a7f19f12757.html
+- SAP Help — Schedule Order Closing Runs (status REL/TECO/CNF/DLV/PREL swept to Closed): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/7e8fdd7f416344ef896fc052dcc8ffa9.html
+- SAP Help — Closing a Production Order (CLSD prerequisites: REL or TECO): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/daffb753128eb44ce10000000a174cb4.html
+- SAP Help — Order Combination (TECO/DEL status exclusion from cost distribution): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/eec775819e644eccaa3f9e3ea2f70eb1.html
+- SAP Help — 3F0: Event-Based Production Cost Posting (Recommended) — variance settled at DLV/TECO: https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/1171ebffae444d9fa9072364aae1b070.html
+- SAP Help — Event-Based (3F0) versus Period-Based (BEI) in Production Costs of Manufacturing Orders (full comparison table): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/a5787e40787a4b4eb7c8c69d1faeba38.html
+- SAP Help — Actual Settlement (Orders with Ledger-Specific Costs Only): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/e49a3770f22547a392455154f3eef6e2.html
+- SAP Help — Manufacturing Master Data of Process Orders (phase vs operation, primary/secondary resource, master recipe): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/dc87d87807744ccf9cedf61df3009fdd.html
+- SAP Help — Manage Process Order Operations (phases, relationships, required vs issued): https://help.sap.com/docs/SAP_S4HANA_CLOUD/2bba750d1e124e1ea2a039bb1cd9b6c5/48d4f057b6a44fb59d3c3d85500a9f42.html

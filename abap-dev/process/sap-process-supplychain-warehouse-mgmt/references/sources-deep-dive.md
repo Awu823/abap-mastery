@@ -1,0 +1,21 @@
+# Sources — deep-dive.md (3BR/3BS functional consulting depth)
+
+- SAP Help — Configuration for Warehouse Tasks (warehouse process type determination): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/6782e8a001d64462a6ec6dd0ac39818c.html
+- SAP Help — Putaway List (S110/S115 warehouse process types): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/447cf8dac3c64e9a84e96ca307416105.html
+- SAP Help — Pick List (S210/S201 warehouse process types): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/82cf810979654983b2c505f1f3154987.html
+- SAP Help — Configuration for Putaway (storage type search sequence, putaway rules, bulk storage): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/be1af11cb9bc4d00913f1b4d3b1a9861.html
+- SAP Help — Extensibility for Putaway Strategies (Empty Storage Bin / Addition to Existing Stock / Near to Fixed Bin + BAdIs): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/d1cbe37558094876b1b07dea4ee55e9d.html
+- SAP Help — Configuration for Stock Removal (storage type search sequence, removal rule, control indicator): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/222dee3915564037912b41569546640a.html
+- SAP Help — Extensibility for Stock Removal Strategies (Stock Removal Suggestion According to Quantity + BAdIs): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/33dc40367a084ab7a703d53ab95901fc.html
+- SAP Help — Main Areas in Product Master Data (product-level storage-type/removal sort field): https://help.sap.com/docs/SAP_S4HANA_CLOUD/f86dc2eb1f8b48c880a7607213104b27/46c3b853dcfcb44ce10000000a174cb4.html
+- SAP Help — Wave (grouping of warehouse request items): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/9e21a7d9b5c44e13a4942a179344696e.html
+- SAP Help — Maintain Wave Templates (release method, cutoff/release/picking/packing/staging timing): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/1d76cf535f3948309077b12eb5ce5f35.html
+- SAP Help — Warehouse Order Creation (Warehouse Order Creation Rules group tasks into orders): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/08ce92a99e114f0daa26124c52adb8d0.html
+- SAP Help — Monitor Methods (Merge/Split Warehouse Order, Release/Merge Wave mechanics): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/4b2f87853cc94cb9e10000000a42189b.html
+- SAP Help — Resource Management (queues, resource assignment, warehouse order selection): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/13cdcb53ad377114e10000000a174cb4.html
+- SAP Help — Queue: https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/6ccdcb53ad377114e10000000a174cb4.html
+- SAP Help — Handling Units in Cloud Processes (end-to-end HU process flow): https://help.sap.com/docs/SAP_S4HANA_CLOUD/32da8359c8ee4e8b8e8c5e15cacba5aa/11fae0d93efe425cbead100510ab4b3c.html
+- SAP Help — Packing in Deliveries (multi-level packing, overflow handling, WM-distributed lock): https://help.sap.com/docs/SAP_S4HANA_CLOUD/32da8359c8ee4e8b8e8c5e15cacba5aa/72c8d5a6285f4159a358da41ae8c8014.html
+- SAP Help — Exceptions (exception code table: DIFS/DIFW/DIFD/CHBD/SPLT/SKWO/CRID): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/e8a30c35c57f4391a22aa6102fa3be24.html
+- SAP Help — Combined Picking (BIDU/BIDF/BIDP denial codes across combined tasks): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/e2c3ba295b3e4d72b6befed4403b56a1.html
+- SAP Help — Quality Inspections During Goods Receipt (stock type Q, quality-area routing, usage decision): https://help.sap.com/docs/SAP_S4HANA_CLOUD/87f9b54f9c4f4e75aff0061860a6589a/4e68ee6fa3174cce917154141ef9729a.html

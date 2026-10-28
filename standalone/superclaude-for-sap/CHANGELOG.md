@@ -1,0 +1,1106 @@
+# Changelog
+
+All notable changes to **SuperClaude for SAP (sc4sap)** will be documented in this file.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.6.50] — 2026-10-28
+
+### Added — ECC dump list older than 24 hours
+
+- `abap/zmcp_adt_dispatch_ecc.abap`: new dispatcher action `DUMP_LIST` — ST22 runtime error headers (SNAP, decoded like `RS_ST22_GET_DUMPS`: runtime error, program, include, line) for a date range, optional user / client filter, ST22 display authorization checked. The ECC ADT dump feed only covers the last 24 hours, so `analyze-symptom` used to end with "no dump" for anything older. Re-install the dispatcher (setup) on ECC systems to get it.
+
+### Changed — MCP pin
+
+- `abap-mcp-adt-powerup` pin `6e17e09` (4.8.14) → `c9265a1` (4.8.15). `RuntimeListDumps` (`date_from` / `date_to`) and `RuntimeListFeeds(dumps)` add the `st22` list from `DUMP_LIST` for ranges older than 24 hours; the ECC 404 for one dump says how to get the facts instead; the SOAP RFC backend (BASIS 7.31) decodes `&#34;` in results, so 7.31 helpers no longer return 0 rows.
+
+## [0.6.49] — 2026-10-28
+
+### Changed — MCP pin
+
+- `abap-mcp-adt-powerup` pin `c9461c6` (4.8.13) → `6e17e09` (4.8.14). `GetGuiStatus` now narrows every CUA table to `status_name` (before only the status list was narrowed, so a large program interface came back whole), takes `function_codes` to keep only some functions, and `format: "compact"` returns one line per function (code, text, icon, function key, toolbar). Captions of a few buttons now cost a few hundred tokens instead of 15K+.
+
+## [0.6.48] — 2026-10-28
+
+### Added — `module-to-process` large scopes
+
+- Scale mode for scopes with more than 300 used entry points (`skills/module-to-process/workflow-scale.md`): source fetching in batches of 40 programs per checker with an on-disk check, a second round for called customer function groups (function group read from the search URI), Step 4 as parallel placement parts plus one consolidation pass, Step 6 review in slices of L2 codes.
+- `scripts/process/merge-placements.mjs` — merges the placement parts (`summary` → input of the consolidation pass, `build` → `step4.json` in backbone order with merged keys, owners, systems, variants, `not_evidenced` and `step4-ext.json` with the external systems per task). Several modules in one run.
+- Standard process backbones for FI (`configs/FI/process-backbone.json`) and CO (`configs/CO/process-backbone.json`).
+
+### Added — `module-to-process` integration map (cross-module)
+
+- Step 1 asks whether to build an integration map with modules that already have a process map; a module run never analyses other modules. Objects of other modules its programs reach stay boundary stubs (`skills/module-to-process/workflow-integration.md`).
+- `scripts/process/cross-module.mjs` — touchpoints between module maps from their reference graphs: per L4 the tables read / written and functions called through customer code, the owning module by customer prefix or `configs/<M>/tables.md` / `bapi.md`, writer ↔ reader pairs across modules, master data and shared utilities as hubs, boundary stubs for modules without a map, the analysts' cross-module notes attached by object.
+- E2E scenarios across the modules written by one `sap-analyst` from a pair digest.
+- Module pages show the integration maps of their module, read-only (`scripts/process/integration-view.mjs`): a section with the cross-module E2E scenarios (own steps in full colour, the other module's greyed, where each step runs) and, per task sheet, the steps before / after it and the key pair notes, with links into the other module's page and the integration map.
+- Scenario steps show where they run: the program of the task that touches the handed-over object (graph evidence), else the one the step note names, else the task's TCodes.
+- `scripts/process/build-integration-doc.mjs` — one page per module pair: overview, E2E scenario swimlanes (module lanes, boxes link to the task in the module page), touchpoint matrix (L4 × L2), touchpoints per object with evidence, hubs, boundary stubs.
+
+### Changed — `module-to-process` page, written for consultants and operators
+
+- Every step says where it runs (`where`: TCode / program / RFC / job) and what starts it (`action`: button with its function code, F8, batch job, exit); both appear in the step table, the step swimlane and the decision flow.
+- A step done by several programs lists one case per program (`alts`: when, where, action); its swimlane box links to a case figure.
+- Program frames: every decision-flow node sits in the frame of the TCode / RFC / job it runs in. A node without a program of its own (decision, save, start, end) belongs to the program of the node before it. Nodes of one program share one frame, each program has its own tint, and a tab on the frame names it ("TCode · ZXX01", "RFC · Z_…"). Tables of io nodes never name a frame. Consecutive steps of one program share a dashed frame in the step swimlane.
+- BPH table: Excel-like column filters. A ▼ on each header opens a value list with counts, a value search, (select all), OK / Cancel and "clear this filter"; TCode / object cells count each code. Filters on several columns combine, matching rows keep their parent rows, and "clear all filters" resets them. The type buttons are gone (the type column has its own filter).
+- Swimlane boxes wrap between words and grow to their text; nothing is cut off with "…".
+
+### Changed — flowcharts in every skill
+
+- Arrows that meet at one point of a node (an arrow in and an arrow out, or several in) no longer run on top of each other. Each keeps its own row up to a short diagonal into the point, so the meeting point reads as a chevron. Arrows that only leave a point (the branches of a decision) still share it. Applies to auto-laid-out flowcharts (`renderFlowchartSVG`) and to free-layout flows drawn or edited in a page (`flow-draw.mjs`).
+
+### Fixed
+
+- `companion.mjs apply` matches each translated chunk to its source chunk by text, so translations made before a later model edit still land on the right fields (the item ids of a new extraction shift).
+- `assemble-model.mjs` applies only known `row_patch` fields; `tcodes_add` / `tcodes_remove` / `objects_add` / `objects_remove` move entries between tasks (row and variants); other keys are reported as open questions instead of being copied onto the row.
+- `assemble-model.mjs`: a `row_patch.variants` given as `{ "<variant id>": { …patch } }` changes those variants in place instead of replacing the list.
+- `merge-placements.mjs`: a placement whose `system` is not SAP also counts as an external link of its task (`step4-ext.json`).
+
+## [0.6.47] — 2026-10-27
+
+### Added — `module-to-process`
+
+- One editable HTML process map per module (or process area of several modules) for the consultant who starts a conversion or enhancement project. Replaces `package-to-process`.
+- Usage first: only TCodes users actually run are analysed — ST03N of the productive system (`SAP_USAGE_RFCDEST`), a submitted export or a usage list saved by an earlier run (`usage-scope.mjs --save-usage`). Unused TCodes are counted per package and never fetched.
+- Standard process backbone `configs/MM|SD/process-backbone.json` (L1 mega process > L2 process chain > L3 process > L4 task, standard TCodes / BAPIs / tables as anchors, S/4 notes). Entry points are scored against it (`backbone.mjs`); an Opus analyst places every used TCode on an L4 task, adds CBO-only tasks, variants (org-unit / document-type branches in the source), owner lanes and the systems the code talks to.
+- Task sheet per L4 in PDD form: definition, output, timing, business rules with source lines, steps by owner and system, decision flow, related standard / CBO objects, interfaces, links, S/4 conversion notes, items to confirm. Parallel Opus parts write their own files from one brief.
+- Optional module-consultant review (wording, owners, standard-task sheets, conversion notes, glossary, objections).
+- Page: BPH table (filter, collapse), L3 scenario swimlanes (lane = owner, fill = system, border = type), variant matrix, step swimlanes, appendix (cross-module, interfaces, conversion, standard processes without evidence, open questions, glossary).
+- Edit mode in the page: texts, list items, BPH rows, undo, autosave, Save with author and note; `build-process-doc.mjs --import` reads the page back into the next version.
+- Optional reconciliation with an existing BPH / BPML workbook (`bph-import.mjs`: header detection, forward-filled hierarchy, label matching) and an English companion page (`companion.mjs` + parallel translators).
+- Deterministic scripts in `scripts/process/` (`usage-scope`, `merge-graphs`, `backbone`, `assemble-model`, `build-process-doc`, `swimlane`, `process-editor`, `bph-import`, `companion`) with tests.
+
+### Changed
+
+- `package-to-process` redirects to `module-to-process` for one release.
+- `trust-session` accepts `module-to-process` as parent skill; `config-to-document` and `program-to-manual` point to `module-to-process`.
+
+## [0.6.46] — 2026-10-20
+
+### Changed — MCP pin
+
+- `abap-mcp-adt-powerup` pin `1af0724` (4.8.12) → `c9461c6` (4.8.13). New installs get the SmartForm tools the `smartform-preview` and `smartform-from-pdf` skills call — `GetSmartFormLayout`, `GetSmartFormContent`, `RenderSmartForm`, `CreateSmartForm`, `DeleteSmartForm` — and the server's dependency updates (`@modelcontextprotocol/sdk` 1.32.1, `axios` 1.20, `fast-xml-parser` 5.11, `zod` 4.6, ...).
+
+## [0.6.45] — 2026-10-20
+
+### Changed — `smartform-from-pdf`
+
+- Item lines are always a loop. The planner reports item candidates: lines whose columns repeat at a fixed pitch, also items of several lines, a reference line above the line of numbers and a freight line that fills fewer columns. Over free texts (no ruled grid) the new `textItems` puts the column header, the loop and the totals below it into one MAIN window, so the totals move down with the items; cells follow each text's alignment and grow beyond the sample's width, rows never get thinner than their line spacing.
+- Shading: filled boxes shade the template cells they cover (a grey as black at its intensity, a colour as fill colour). Image areas become graphic windows that show an existing SE78 graphic the user names (resolution taken from the image).
+- Conditional texts (`conditions`, the text node's own condition), currency / quantity reference fields (`refFields`), Initialization code (`init`) and text modules (`modules`) for letterhead and footer blocks, named per company code at run time; a company code without a module leaves the block empty instead of stopping the print. A test text module can be uploaded with `CreateSmartForm`.
+- Placement: right-aligned columns (amounts, values under each other) get right-aligned paragraphs; a window whose text became a field grows the way its text is aligned; grid edges sit at rule positions, not at rule ends; white rules and zero-width window frames are no rules; texts on one line share a line spacing where the styles allow it; a line spacing equal to the font height no longer counts as too small.
+- Screenshots: font sizes are measured from line widths with SAP's glyph widths, and handwritten notes are asked about, not printed.
+- `compare-layout.mjs` also reports shading and images (not scored, so scores stay comparable).
+
+## [0.6.44] — 2026-10-19
+
+### Changed — `smartform-preview`
+
+- Glyph widths match SAP's print: SAP adds up its device type's font-metric widths per character, each rounded to whole twips. `scripts/smartform/glyph-widths.json` holds the widths SAP's own PDF converter used (PDFUC / SAPWIN per family and weight, KPPDF per size), and the preview corrects the browser's widths to them, so lines wrap where SAP wraps them.
+- Tables: sort-begin / sort-end events per group, and the WHERE / first-line / last-line output conditions.
+- A tab with nothing printed after it makes no room; a bar-code character format with no bar-code type prints plain text; a character format that only wraps other formats and is larger than their text no longer enlarges the line; the Thai family THVIJIT prints as ANDALE_J on PDFUC.
+- Tested on 40 more forms the preview had not seen before; 37 matched SAP's print exactly.
+
+### Changed — `config-to-document`
+
+- Reads validation / substitution rules (GGB) and CMOD projects into the configuration document; large tables are read in pages; customer rows are marked from the transport history.
+
+## [0.6.43] — 2026-10-19
+
+### Added — `smartform-from-pdf`
+
+- New skill `/sc4sap:smartform-from-pdf`: a SmartForm built from a PDF of the printed form (or a screenshot, positions estimated). Ruled areas become templates, every text is placed where the source has it, in the paragraph / character format of an existing SmartStyle that prints its font, size and weight (no style is created; sizes no style has are reported). The main thread then decides with the user which texts are fields, which grid rows are item lines and which DDIC types carry the interface; the form is uploaded to the DEV system, printed there and the print is scored against the source page.
+- `scripts/smartform/read-pdf.mjs` — PDF page → texts (position, font, size, weight, SAP font name from RSTXPDF comments), rules, boxes and images in mm; no dependencies (Type1 / TrueType widths and encodings, CID fonts in EUC-KR / UTF-16 / UCS-2, ToUnicode, glyph-name differences, inline and XObject images, object streams). Checked against SAP's OTF of more than a hundred forms: 99.6 % of the text runs and 99.9 % of the rules at the same place.
+- `plan-form.mjs` (layout + style catalog → form spec), `shape-form.mjs` (fields, item loops, interface), `write-form.mjs` (spec → Form Builder XML: windows, templates with per-cell borders, loops, tables with header / main / footer events), `compare-layout.mjs` (print vs source score). Built and tuned by generating forms from more than a hundred printed forms and comparing SAP's print of each with its source: average 98 / 100, most at 99 or better.
+- What the generator follows, learned from SAP's prints: a text prints in the style of its output options; a cell prints a line only when the whole line height fits; a window frame prints only when the window prints something (lone rules are one-cell templates); a text line holds 132 characters (continued in `=` lines); CJK families are device fonts (a stand-in the printer lacks prints `#`); numbers are right-justified in their output length (`(C)` in narrow cells).
+- ABAP: `zmcp_ssf_upload.abap` (FM `ZMCP_SSF_UPLOAD`, SMARTFORMS-style XML upload with check, activation and regeneration) and `zmcp_ssf_delete.abap` (FM `ZMCP_SSF_DELETE`, local Z/Y forms only) with their dispatcher branches; install steps in `abap/README.md`. DEV systems only.
+
+Needs abap-mcp-adt-powerup with `CreateSmartForm` / `DeleteSmartForm`.
+
+## [0.6.42] — 2026-10-19
+
+### Changed — `smartform-preview` prints like SAP
+
+The preview was trained against SAP's own output: for well over a hundred customer forms, SAP rendered the form with invented values (new FM `ZMCP_SSF_RENDER`, MCP tool `RenderSmartForm`) and a metric compared every text run, line and bar code of SAP's OTF with the preview. Most forms now match exactly. What the renderer learned, among others:
+
+- **Fonts and widths:** printer families per device type (missing families and missing fixed sizes print in COURIER, TrueType families without bold print regular), blank widths from SAP's own metrics per device / family / size (`blank-widths.json`), hyphen rules rounded like SAP, no kerning, fixed-pitch DBCS fonts, legacy Korean / Chinese / Japanese bytes in Latin-1 texts printed as Hangul / CJK in a DBCS printer font.
+- **Styles:** a text prints in the style its output options or parents pass down, not the one stored with it; styles named only in output options are read too.
+- **Layout:** table patterns and outer frames, window boxes outside by their distance, hairline sides, templates at a fixed vertical position, LEFTMARGIN, line types that refer to another line's height, 4.6-style tables that flow by new line / new cell, folders and loops inside templates and tables, footer events on the last row, sort events, page breaks, cut rows in fixed-height cells and secondary windows.
+- **Text:** right / centre tab stops and default tab stops, append-directly text nodes, dynamic text nodes (text tables), hyphenated words, numbers right-justified with the sign position, page totals, texts in the form's master language when the logon language has none, bar codes (Code 128 module and height from SE73) with nested bar-code formats.
+- The skill documents the value conventions (sign position, node-scoped values, dynamic texts).
+
+### Added
+
+- `scripts/smartform/compare-otf.mjs` (preview vs SAP OTF metric) and `scripts/smartform/otf-draw.mjs` (OTF drawn as a reference image).
+- ABAP: `zmcp_ssf_render.abap` (FM `ZMCP_SSF_RENDER`) with its dispatcher branch `zmcp_adt_dispatch_ssf_render_branch.abap`; `ZMCP_SSF_CONTENT` returns style paragraphs / character formats with SE73 bar-code definitions, the device's printer fonts (`FONTS` part), and the form XML in a given language (`FORM` + `IV_LANGUAGE`). See `abap/README.md`.
+
+Needs abap-mcp-adt-powerup with `RenderSmartForm` and the extended `GetSmartFormContent` (main 14df46e).
+
+## [0.6.41] — 2026-10-16
+
+### Added — `smartform-preview`
+
+- New skill `/sc4sap:smartform-preview`: the expected print of a SmartForm as a JPG plus the HTML it is drawn from, without a print program or test data. Windows at their mm positions, SmartStyle paragraph and character formats, template grids with borders and shading, loops and tables with sample rows, SE78 graphics (logos, signatures) at their printed size, `Page 1 of 1`.
+- Every `&field&` gets an invented sample value: `scripts/smartform/build-preview.mjs symbols` lists where each symbol prints (window, font size, cell width, inside a loop) with the type it is declared with; the skill reads the field types from the DDIC and writes `values.json` with values that fit them (one value per sample row inside loops). Business data is never read.
+- `build` writes the HTML, saves the JPG with headless Chrome / Edge / Chromium and reports cut-off cells and overflowing windows — drawn cut off, as SAP prints them — plus everything it could only approximate (field conditions, alternatives, address nodes, dynamic graphic keys).
+- ABAP: FM `ZMCP_SSF_CONTENT` and dispatcher action `SSF_CONTENT` (`abap/zmcp_ssf_content.abap`, `abap/zmcp_adt_dispatch_ssf_content_branch.abap`, install steps in `abap/README.md`). Read-only; needs MCP server with `GetSmartFormContent`.
+
+## [0.6.40] — 2026-10-16
+
+### Added — `config-to-document`
+
+- What the customer BAdI implementations do: the extraction reads every implementing class (and the Z includes it branches into, two levels deep) and splits it per method — code or empty, size, the function modules, tables read and changed, classes and includes it calls. The module consultant writes a summary and one line per method with code, `sap-critic` checks them against the source, one revision (`scripts/config/badi-notes.mjs`, prompt § 6). The BAdI card shows them under each implementation with the method table and the source (folded).
+- IMG activities that only open SE18 / SE19 name their BAdIs in the documentation, not in `CUS_ACTEXT`: those names count when the system knows them as a BAdI, so implementations such as invoice-verification BAdIs appear on their activity.
+- Value lists per column: the ⓘ popup and the column meanings list the values a column can take with SAP's text — the domain's fixed values, else the keys of its check table with the text of its language-keyed text table (TVFK → TVFKT), never a user-name column; up to 300 values.
+- What each fixed value of a column does: `scripts/config/values.mjs` batches the domains behind the shown columns (fixed values with the document-language and English SAP text, F1, rows using each value), the module consultant writes one line per value (`DOMAIN:VALUE = meaning`), `sap-critic` corrects, and the reviewed meanings go to a knowledge base shared by every module and system (`~/.sc4sap/kb/values/<lang>.json`). The value list in the ⓘ popup shows them in a "Meaning" column; a document-language SAP text that is a mistranslation, a literal rendering or untranslated is called out there. The snapshot keeps the English domain texts for this (`domainsEn`).
+
+### Fixed — `config-to-document`
+
+- Customer rows were under-counted on busy tables: the customer transport keys (E071K) of a table were read once, up to 5000 rows, so on per-plant tables (storage locations, order type parameters …) rows changed by later requests were not marked as customer rows. The keys are now read in pages by request number.
+- The extraction's read cache (`_cache.json`) is written one entry per line: with the transport keys read in full it grew past the longest string `JSON.stringify` can build, and the run ended without writing the snapshot. A cache from an earlier version is still read.
+- Tables still cut after the full read are read completely in more cases: a text table read in two languages is split per language first (movement type texts stopped half-way through the Y range), and a table whose first key has no fixed values or a check table larger than 1000 rows (routes, route stages, message texts) is read in pages in key order instead of staying at 5000 rows.
+
+- Tables with more rows than `--max-rows` are no longer cut at 1000 rows: on a system with many plants the per-plant tables (order type parameters, BOM application, move times …) lost most plants. Such a table is now read again up to the 5000-row read cap and split by its key fields when it reaches it; text tables keyed by language are read in the document language and English only, which keeps the snapshot small. `--no-full` keeps the old limit.
+- `notes-lint.mjs` no longer flags "N rows, customer changes M" sentences ("28행이며 고객 변경 행은 5건") as a wrong customer count: a customer word after a clause connector belongs to the next count.
+- `notes-lint.mjs` also reads a zero customer count ("105건, customer row 0건", "1건, customerRows 0") and "고객 … 없음" as "no customer rows" instead of a wrong customer count.
+- `sap-critic` can read includes (`GetInclude`): reviewing a BAdI implementation or a user exit, it had to take the writer's word for code that branches into a Z include.
+- The consultant notes' input carried only the first 1000 characters of the SAP IMG documentation, which cut 40 % of the activities (a whole standard procedure could be missing); it now carries up to 6000 characters (99 % of the documents complete).
+- Enhancement-based BAdI implementations show their creator, date and implementing class: the enhancement header keeps them in a serialized field, so they are read from the transport that first recorded the enhancement (E071/E070) and the class from that request.
+- The IMG link in the overview's BAdI table opens the activity instead of jumping back to the overview; the BAdI card's filter column has its own label (it showed the table search label) and dates read YYYY-MM-DD.
+
+## [0.6.39] — 2026-10-16
+
+### Added — `config-to-document`: column meanings
+
+- Every value-table column gets its business meaning: an ⓘ on the column header (tap on a phone) and a folded "column meanings" list above the table, with the SAP F1 text of the data element next to it.
+- The extractor reads the F1 documentation of every column's data element (`fieldDocs`); `--field-docs` adds it to an existing snapshot without reading the configuration again.
+- New `scripts/config/fields.mjs`: batches of 100 data elements (label, domain values, F1 text, where used, samples), written by the module consultant and corrected by `sap-critic` (prompt § 5, no web research), then kept in `~/.sc4sap/kb/fields/<lang>.json` — shared by every module, so a later module writes only the data elements it does not share.
+- `--full-tables "<T1>,<T2>"` reads the named tables up to the read cap instead of `--max-rows`; a capped table is split by its next key fields, and `config-checks.json` `reads` without a condition are read like activity tables (DDIC fields, customer transports).
+- BAdI customer implementations: an IMG activity that is a BAdI (`CUS_ACTEXT`) shows a card with the customer implementations of this system — classic (`SXC_EXIT` / `SXC_ATTR` / `SXC_CLASS`) and enhancement-based (`BADIIMPL_ENH`) — and an active implementation marks the activity customized; the overview lists every BAdI with customer implementations. `--badi` adds them to an existing snapshot.
+- Case flows and screen drawings open in a lightbox with zoom (−, +, fit, close).
+- SD: `configs/SD/config-checks.json` reads the SD condition tables the checks need; corrected SD pricing transactions (V/06, V/07, V/08, OVKK).
+
+### Fixed — `config-to-document`
+
+- View selection conditions on the same field are OR-ed and NUMC values compared as numbers, so views such as output-function or billing-plan variants no longer show 0 rows.
+- On a phone the top bar stays on one line (title shortened, system line hidden).
+- A browser that cannot unpack the page shows why instead of a blank page.
+- `extract-customizations.mjs` read no BAdIs at all: the catalog heading "BAdIs" was not recognised as the BAdI section. A tool reply flagged `isError` now counts as a failure (listed under `unavailable`), `GetEnhancementSpot` gets its correct argument name, and enhancement-based implementations are read once from `BADIIMPL_ENH` and merged.
+- `ZMCP_ADT_DISPATCH` (ECC) `TABLE_READ` allows the BAdI repository tables `SXS_ATTR`, `SXC_EXIT`, `SXC_ATTR`, `SXC_CLASS`, `ENHHEADER` — update the function module from `abap/zmcp_adt_dispatch_ecc.abap` to see classic BAdI implementations; until then they show as not readable.
+- An unknown option to `extract-config.mjs` stops the run instead of being ignored.
+- SAP documentation drops `<GL:…>` / `<LS:…>` link tags.
+
+## [0.6.38] — 2026-10-15
+
+### Added — `interface-mapping-spec`: interface mapping specifications
+
+- New skill `/sc4sap:interface-mapping-spec`: one editable HTML page per interface in the classic mapping-specification layout — cover, revision history, header, systems, Source → Target field grid with conversion-rule (R) and MAPPING columns, an optional response block for synchronous interfaces, conversion rules, extraction condition, remarks and the field guide (ⓘ tooltips). Output: `interfaces/<IF_ID>/<IF_ID>-v<n>-<lang>.html` under the profile artifact base, with an English companion.
+- Built for new interfaces: four scenario presets (master data outbound, transaction outbound, inbound into SAP, query) fill the header and the response block; the SAP side comes from a `TABLE-FIELD` / data-element list, from the module consultant's proposal (checked against DDIC), from an Excel paste or an empty grid — or is read from an existing table, DB view, structure (proxy) or function module signature (TABLES parameters named as outputs go to the response block).
+- Fields are grouped by the unit they travel in: ▸ group rows per side with name, PARAMETER / STRUCTURE / TABLE and occurrence; a row's Table column holds only the source DDIC table, and the systems' Structure / occurrence is the summary of the groups. Source and target sides have their own colours.
+- Proposals: the counterpart side (same names, DB types, MAPPING 1:1), DDIC types shown as DB types (the DDIC type in the tooltip), conversion rules from the field types (dates, times, leading zeros / ALPHA, currency amounts, quantities and units), IF ID numbering from a project pattern. Proposals are marked until edited or confirmed.
+- In-page checks: empty required items, MAPPING to a missing row, unknown rule ids, size truncation, type-family and key mismatches, unmapped target fields.
+- Edit mode with nothing installed: code lists as drop-downs, rows and groups added / moved / deleted with MAPPING following the renumbering, Excel paste, undo, browser autosave; Save adds the revision row (author, change, approver) and raises the version. `import` takes the page back and fills hand-typed SAP fields from DDIC; `refresh` reads SAP again, keeps what the user wrote and marks added / changed / removed fields; `fields` hands the SAP-side field list to `/sc4sap:create-object`.
+- Cover, document-number pattern, ID pattern and code lists per project in `interfaces/project.json`.
+
+## [0.6.37] — 2026-10-15
+
+### Added — `config-to-document`: edit mode covers the views
+
+- Edit mode now also edits each view card: its title, the value-table cells (rows added or deleted) and the change-history rows (added, edited, deleted). Edited views get the "Edited · author · date" badge, so readers see where the page differs from the system.
+- A drawn SM30 screen (overview or detail) can be replaced by a real screenshot in edit mode — button, or click the drawing and Ctrl+V — and switched back to the drawing; captures wider than 1800 px are scaled down, only `data:image/…` sources are drawn.
+- Editable table cells stay table cells (the value table, comparison and criteria tables no longer collapse into one column in edit mode).
+- `--import` carries view edits into `notes/edits.json` (`views`, newer edit wins, null removes); the next build replaces the view's values, title and history, redraws its SM30 screen from the edited rows and recounts the activity's rows.
+
+## [0.6.36] — 2026-10-15
+
+### Added — `config-to-document`: module configuration from the live system
+
+- New skill `/sc4sap:config-to-document` (MM first): one HTML file along the module's IMG tree — per IMG activity the real table values drawn on an SM30-style screen, rows changed by customer transports with their transport history, configuration checks (`configs/<MODULE>/config-checks.json`), SAP's IMG documentation, and consultant notes written by the module consultant agent and reviewed by `sap-critic`. Output: `config-docs/<MODULE>/<MODULE>-config-v<n>-<lang>.html` under the profile artifact base.
+- Reference panel per IMG activity, written by the consultant agent and reviewed by `sap-critic`: SAP documentation summarised in the document language, 2–3 setup cases with flow diagrams and which one the system follows, comparison table, decision checklist, decision criteria, and sources limited to official SAP documentation (SAP Help Portal, SAP Notes / KBAs, SAP Learning — anything else is refused on save).
+- The notes scope (customized / all with values / all / none) is asked on every run with its batch count and measured cost; reviewed activities are not rewritten.
+- Names SAP has no text for in the document language (IMG folders, activity titles, field labels) are translated once by the consultant agent, reviewed, and reused by later runs.
+- Number range activities show their intervals (NRIV) on an SNUM-style screen; view variants (`VV_*`) resolve to their base table and selection condition.
+- Edit mode in the page: the consultant notes and the reference panel become editable plain text (list items added or deleted, notes added to an activity without them, sources deleted) while the value tables stay read-only; undo, browser autosave with "continue editing", an "Edited" badge per note. "Save" downloads the page with the edits embedded; `build-config-doc.mjs --import <file>` merges them into `notes/edits.json` so every later version keeps them. Edits never enter the knowledge base.
+- Knowledge base of reviewed notes (`notes.mjs kb`): the system-independent part of every reviewed note is kept under `~/.sc4sap/kb/config/<MODULE>/<lang>/`; later runs — the same or another system — write only the system part of those activities, with no web research.
+- Cheaper reviews: a verified-source cache (`notes-sources.mjs`) hands earlier-accepted official pages to the writer and lets the reviewer skip re-opening them; `notes-lint.mjs` checks a batch before review at no token cost — count statements against the snapshot (customer transports only, truncated tables flagged), every named transaction resolved against TSTC / the IMG, check findings the notes leave out.
+- Tables capped at the 5000-row `TABLE_READ` limit are read again per value of their first key field, so output determination (usage B) rows are no longer cut off behind pricing rows.
+
+### Fixed — `config-to-document`
+
+- Customer rows count customer transports only (`<SID>K` + 6 characters); SAP delivery records (`SAPK…`, command files such as `P30A_C_SFC`, `/SPE/100_CUST`) are no longer counted as customer changes.
+- View conditions on blank values (`INAKTIV = ' '`) match empty fields.
+
+### Fixed — screen drawings
+
+- ALV cells cut a value wider than its column with "…" instead of drawing it over the next column; `config-to-document` sizes each column to its longest shown value (80–240 px). Measured on a full MM document: 288 drawings had overlapping or spilling texts before, none after.
+
+### Changed — MCP pin
+
+- `abap-mcp-adt-powerup` pin `bbb2e98` (4.8.9) → `1af0724` (4.8.12 + legacy `TABLE_READ` passes every table to `ZMCP_ADT_DISPATCH`, which decides by delivery class).
+
+### Added — model routing for Opus 5.5 and a Haiku checker
+
+- `common/model-routing-rule.md` rewritten for the Opus 5.5 / Sonnet 5.5 / Haiku 5.5 tiers with effort per agent role, an escalation pattern and a fan-out table; HUD pricing for the 5.5 models.
+- New agent `sap-checker` (Haiku, read-only) for narrow scout / verify / detect jobs with a line-oriented output contract.
+- `create-program`: Phase 1A DDIC scout, Phase 4 verification by checker, Phase 6 detect-judge behind a golden-set gate; the reviewer stays read-only.
+- `analyze-code`: a size scout first; large objects go through checker detection over five rule groups and an Opus judge, and every finding gets a Haiku evidence check (unconfirmed ones are listed separately).
+- `compare-programs` facts scouts and the CBO stocking walk / scout / finalize fan-out (`analyze-cbo-obj`, `package-to-process`) use the checker as well.
+
+### Added — editable reports
+
+- `program-to-spec`: versioned spec pages with an in-page editor; `html-to-md.mjs` turns an edited page back into Markdown (untouched blocks byte-exact) and imports it as the next version with history.
+- `compare-programs`: one editable, versioned HTML report with an English companion — fact card, decision guide, verdict matrix with evidence, field presence, both programs' screens side by side, message texts quoted from T100 / the text pool — plus an optional Excel copy (`md-to-xlsx.mjs`).
+
+### Added — other
+
+- CBO reference graph (`scripts/graph/`): ABAP statement lexer, edge extraction (include, calls, submits, reads, writes, types, uses) with evidence lines, and queries (callers, reach, impact, flow, components).
+- `package-to-process`: multi-profile output paths, `_state/` checkpoints with resume, parallel narrative and render steps.
+- Conventions: include names without underscores plus a `{PROG}ct` test include, tabstrip screens, the OK_CODE contract, an ALV framework option in `sap-option`, ABAP 7.40 SP05 / SP08 feature gates.
+- ECC ABAP: usage FMs `ZMCP_WL_TCODE_USAGE` / `ZMCP_WL_JOB_USAGE` (back MCP `GetTcodeUsage` / `GetJobUsage`); `ZMCP_ADT_DISPATCH` gets a real `DYNPRO_INSERT`, the 7.40 `TR_KEY` for `CUA_WRITE`, and `TSTC` / `TSTCP` / `DD03L` / `DD04L` reads.
+- Screen renderer draws the common SAP toolbar icons (list, convert, release, history, …).
+- `.mjs` files check out with LF line endings; homepage links point at sc4sap.dev.
+
+### Changed — `ZMCP_ADT_DISPATCH` `TABLE_READ` (ECC)
+
+- Reads customizing and system tables by delivery class (C, G, E, S) plus a fixed list of repository tables (CMOD, TSTC, DDIC metadata, transport keys); application data and credential tables are still refused.
+- Fields inside a `.INCLUDE` can be selected.
+
+## [0.6.35] — 2026-10-07
+
+### Added — customization extraction: VOFM routines
+
+- `extract-customizations` now lists customer VOFM routines (requirements, formulas, data transfer, copy requirements, …) in `enhancements.json → vofmRoutines[]`: group, number, description, KAPPL, active flag, the routine include (`RV61A` + number, `RV45C` + number, …), its FORMs and code lines. The summary line gets a `VOFM:n` column.
+- Customer routines are told apart by number only, with the ranges of transaction VOFM itself: 600–999, PSTK / TDAT 50–99, FOFU 900–999. Their includes live in SAP packages, so the package says nothing. SAP routines below the range are never reported, even when modified.
+- Module: condition routines by KAPPL (V… / F → SD, M… / E… → MM, TX → FI), the rest by group (sales / shipping / billing → SD; batch, PURCHIS, stock control → MM; SFIS → PP; PMIS → PM; QMIS → QM). Group catalog and rules: `scripts/lib/customization-vofm.mjs`.
+- A routine registered but never activated is kept with `note`; a registered routine whose include was never generated goes to `notPresent[]`.
+
+### Fixed — customization extraction on ECC and its accuracy
+
+- **ECC (BASIS < 7.50)**: the table reads (CMOD, GGB, BTE, VOFM) now work through the `ZMCP_ADT_DISPATCH` action `TABLE_READ` (requires abap-mcp-adt-powerup 4.8.9 and the updated `abap/zmcp_adt_dispatch_ecc.abap`; pinned SHA `9a948be` → `bbb2e98`).
+- **GGB rules were never read**: the scan queried columns that do not exist on GB03. It now reads the rule tables GB93 (validations) and GB92 (substitutions). A customer rule is one not created by user `SAP`, whatever its name — productive rules are often named without Z/Y. GB31 maps each rule to its application area (FI / AA / CO / PS); FI rules carry their company-code assignments from T001D / T001Q.
+- **BTE function modules were never read**: wrong columns on TBE24 / TPS34. Now TBE34 (Publish/Subscribe) and TPS34 (Process), Z/Y function modules split by application (APPLK), with the product active flag from TBE24.
+- **Unreadable is no longer "none"**: a check that could not run is listed in `unavailable[]` and printed as `NOT READ: …` (repeats counted, e.g. `FORMEXIT ×3`); a catalog include the system does not have goes to `notPresent[]`.
+- CMOD: SMOD enhancements are matched against active Z/Y CMOD projects (MODATTR + MODACT, read once).
+- BAdI: classic BAdIs are read with `GetBadiImplementations` (`source: "classic"`); the enhancement-spot scan is kept as a fallback marked `confidence: "low"`.
+- Form-based exits: an include counts as customized when a FORM has code, it declares FORMs of its own, or it pulls in Z/Y includes — the old 150-line threshold is gone. `codeLines`, `routines` and `zIncludes` are recorded.
+- Table extensions: a field is a customer field when its name or its data element starts with Z/Y. On ECC append-structure names are not readable, so only the fields are listed, with a `note`.
+- SD catalog: three form-exit includes that do not exist in any release were removed.
+- Documentation updated: `common/customization-lookup.md`, `skills/setup/customization-auto-generation.md`, `create-program/inventory-lookups.md`, `analyze-symptom/SKILL.md`, `agents/sap-bc-consultant.md`, README feature line.
+
+## [0.6.34] — 2026-10-06
+
+### Added — `program-to-manual`: numbered screens in the Field Reference
+
+- The Field Reference section now shows the selection screen above the selection-field table and the output grid above the output-column table. Every field the table lists is numbered on the picture, and the same number heads its row in a new `#` column.
+- Numbers follow the table order and are made by the build — `manual.json` needs no new keys. A row's `name` is matched to the drawn screen element (`sel:<name>`, `col:<name>`; "P_DIST2 / P_DIST1" tries each name).
+- Output columns spread over several screens (main grid, popups) get one picture per screen, numbered continuously. Rows whose field is on no drawn screen (Excel columns, fields shown only in a variant) stay unnumbered.
+- In edit mode, adding, deleting or renaming rows renumbers the table and the pictures at once; undo restores them.
+- These pictures are shown at natural size with horizontal scrolling, so wide grids stay readable; in print they fit the page width.
+
+## [0.6.33] — 2026-10-06
+
+### Added — process flows you can redraw in the page (`program-to-manual`, `program-to-spec`)
+
+- The process flow is no longer a fixed picture. In the manual's edit mode, and behind an "✎ Edit flow" button on every flow of a spec HTML (main flow and per-button flows), users:
+  - drag shapes to move them;
+  - drag one of the four dots on a shape onto another shape to draw an arrow (dropping on empty space makes a new step there), or click an arrow and drag its end to reconnect it;
+  - add process / decision / message / start / end steps, change a shape's kind, delete shapes and arrows (Delete key);
+  - double-click a shape or arrow to change its text (e.g. "Yes" / "No" on branches).
+- An edited flow is saved as a **free graph** (`"layout": "free"`, every node keeps its `x`, `y`; arrows keep their sides). The build draws it from those positions (`scripts/spec/flow-draw.mjs`, the same code the page runs), so the PNG, the Excel sheet and the HTML show the user's layout. Flows nobody edited keep the automatic layout.
+- Manual: the flow is part of the manual's edit mode (undo, autosave, Save, `--import`).
+- Spec HTML: `render-md-images.mjs` writes `<flow>.graph.json` next to each flow PNG; `md-to-html.mjs` turns those images into editable figures. Save downloads `…-edited.html`; `node scripts/spec/flow-editor.mjs --import <edited.html> <image-spec.json>` writes only the changed flows back (old file kept as `.bak`).
+
+### Added — `program-to-manual`: more of the manual is editable
+
+- Business rules and each scenario's check points: add, delete and reorder items (▲ ▼ ＋ ✕); ⇄ moves a check point to another scenario. Empty lists stay on the page (hidden outside edit mode) so the first item can be added.
+- Step notes: one line per item, with the same ▲ ▼ ＋ ✕ and "Add note line". The note is still saved as one string.
+- Callout details: add, delete and reorder, also on callouts that had none.
+- An empty result shows a placeholder in edit mode and can be filled in.
+- Empty items are dropped on save.
+
+### Added — `program-to-manual`: cross-links and automatic revision history
+
+- Glossary terms in the prose link to their glossary row (dotted underline, meaning as tooltip), once per step, check-point box or section.
+- Message codes (`E07`, `Q01`, …) link to their row in *Messages and Actions* wherever they appear, check-point sources included; the tooltip shows the message text.
+- Links are rebuilt from the page's own tables when edit mode ends.
+- Saving in edit mode records a revision: a dialog asks for the author (remembered for next time) and a change note, and the page adds version +0.1 to the revision history, the top bar, the cover and the file name (`…-v1.1-…-edited.html`). Saving again in the same session updates that entry. `--import` writes it to `<PROGRAM>-<lang>.history.json`; a `--same-version` build keeps the user's author, date and note.
+
+### Changed — `program-to-spec`: English companion by default
+
+- When the spec language is not English, a new Step 6 writes English twins of every selected format (`-en.md`, `-en.html`, `-en.xlsx`) after the review, the way `program-to-manual` already does. Structure, SAP identifiers and flow layouts are kept; only prose and labels are translated. Say "no English version" to skip it.
+
+## [0.6.32] — 2026-10-02
+
+### Fixed — `trust-session`: no more permission-rule warning at startup
+
+- Permission rules are aligned with Claude Code's path-rule model: `Read(path)` covers all file-reading tools and `Edit(path)` covers all file-editing tools. trust-session now grants only `Read(.sc4sap/**)`, `Read(sc4sap/**)` and `Edit(.sc4sap/**)` (plus `Agent(*)`).
+- The stale `Write(.sc4sap/**)`, `Glob(...)` and `Grep(...)` entries that earlier versions wrote never matched and made Claude Code print a warning at startup. trust-session now removes them automatically; no other rule is touched.
+
+## [0.6.31] — 2026-09-30
+
+### Added — `program-to-manual`: edit the finished manual in the page
+
+- The manual page has an **Edit** button. Key users change the finished manual like a slide deck, with nothing installed and nothing loaded from the network:
+  - Click any text to change it. Selecting text shows a small toolbar with bold, highlight (red) and bullet list. The toolbar is Quill 2.0.3 (BSD-3-Clause), inlined from `scripts/manual/third_party/quill-2.0.3/` and mounted only on the field being edited.
+  - Move, duplicate and delete steps. Add and delete callouts, and drag a callout number to a better place; a leader line keeps it tied to its frame.
+  - Replace a drawn screen with a real screenshot: click the step and press Ctrl+V, or use the button. "Original screen" brings the drawing back.
+  - Add and delete rows of the field, message and glossary tables, edit every cell, and switch the ● cells (required, F4) with a click.
+  - Undo every change with Ctrl+Z or the Undo button.
+  - Edits are kept in the browser (IndexedDB) until saved. Reopening the page offers "Continue editing" or "Discard".
+  - A short guide opens the first time and stays available under Help.
+- **Save** writes a copy of the page (`…-edited.html`) with the edited `manual.json` embedded. `build-manual.mjs --import <edited.html> <manual.json>` reads it back (the old draft is kept as `.bak`), and workflow Step 0 imports a user-edited copy before anything else, so the next version keeps the users' edits.
+- New `manual.json` keys written by the edit mode: step `image` (a pasted screenshot, drawn instead of `screen`), callout `offset` / `pos`, top-level `edited`. Prose markup gains `==highlight==` and `- ` bullet lines.
+- The page is about 480 KB instead of about 220 KB, because the editor is inlined.
+
+### Added — `program-to-manual`: Excel worksheet screens
+
+- A screen with `"kind": "excel"` is drawn as an Excel worksheet: title bar with the file name, formula bar, column letters, row numbers, the note row, header cells in the template's own fill colours, data rows and the sheet tab. Use it for steps the user performs inside an upload template, instead of an SAP grid. Anchors: `col:<name>`, `row:<n>`, `note`, `sheet`, `title`.
+- Workflow Step 2 reads a user-supplied upload template (header row, fill colours, note cells); mockup rows stay invented.
+
+### Changed — `program-to-manual` builds an English companion by default
+
+- After the main-language manual is confirmed, Step 8 translates it into `<PROGRAM>-en.manual.json` and builds `…-en.html` with its own revision history. Screens, anchors, sample values, SAP identifiers and message texts stay unchanged. It is skipped when the manual is already in English or the user opts out.
+
+## [0.6.30] — 2026-09-30
+
+### Added — `program-to-manual`: an end-user manual for one program
+
+- New skill `/sc4sap:program-to-manual` writes the manual a business user follows, as one self-contained HTML file. On screen it is a web document with a contents sidebar; printed or saved as PDF, every scenario step starts a new A4 landscape page, and the confidentiality notice repeats at the foot of each page.
+- The body is organised by usage scenario. Each step shows the screen it happens on (selection screen, output ALV, popups and follow-up screens), drawn from the source with the `program-to-spec` renderer, with numbered callouts on the fields, radio options, buttons and columns the user touches. The same numbers head the step's instruction list.
+- Each scenario ends with check points taken from the source (mandatory inputs, selection-screen checks, confirmation popups, processing that cannot be undone). The manual also has a field reference, a table of messages with their cause and the action to take, a glossary, and a revision history that numbers versions automatically.
+- A module consultant drafts the business context. The skill asks the user about at most three statements it could not confirm from the source, and marks any that stay unconfirmed with a "to be confirmed" badge.
+- Author, team, company and the confidentiality notice are asked once and stored in the active profile's `config.json` under `manual` (`scripts/manual/manual-config.mjs`).
+- A small screen (a confirmation popup) keeps its natural size instead of stretching to the page width.
+- A screen image drawn smaller than its natural size (a wide grid) opens at full size on click and scrolls sideways; a second click closes it. Print keeps the fitted size.
+- `scripts/manual/build-manual.mjs` builds the page. It warns about callouts that point at something not drawn on their screen (and lists what is drawn), scenarios without check points, and English prose in a Korean or Japanese manual.
+
+### Changed — screen mockups are drawn in SAP Signature
+
+- Selection screens, output screens and popups in `program-to-spec` and `program-to-manual` images now look like SAP GUI's Signature theme. They have the Signature title area with a bold italic title, a flat application toolbar, group boxes with a header strip, and a square ALV grid with a grey header, ruled cells and tinted key columns (`"key": true`). The screen background is the blue-grey of the default colour scheme. The colours were sampled from real SAP GUI screenshots.
+- `"theme"` in `image-spec.json` or `manual.json`, or `"screenTheme"` in the profile `config.json`, picks the look: `signature` (default), `signature-pink` (the pink system colour scheme), `modern` (the earlier look, unchanged) or a palette of your own (`{ "base": "signature", … }`).
+- `selection.title` draws the program title above the selection screen.
+- A dialog box (`"modal": true` on a screen: `CALL SCREEN … STARTING AT`, status type P, `POPUP_TO_CONFIRM`) is drawn as SAP draws it. Its application toolbar sits at the bottom edge with the buttons flush right, and the popup has a window frame.
+- `/sc4sap:sap-option` sets the theme per SAP system ("screen theme", new `skills/sap-option/screen-theme.md`) and shows it in the status snapshot. `scripts/spec/screen-theme.mjs get | set | reset` validates names and custom `#RRGGBB` palettes and writes the profile `config.json` atomically.
+
+### Changed — screen mockups carry callout anchors
+
+- `screen-image-renderer.mjs` wraps selection rows, radio options, toolbar buttons, GUI status and ALV buttons, dynpro elements, column headers, and screen and pane titles in `<g data-anchor="…">`. The wrapper draws nothing, so `program-to-spec` images are unchanged.
+- Selection screens can show a block nested inside another block (`BEGIN OF BLOCK … WITH FRAME` inside a block). Write it as a `{ "type": "frame", "label", "items" }` item at its place in the outer block. It is drawn as an inner border with its title on the top edge, and its fields line up with the fields of the outer block. Before, a nested block had to be flattened into a separate top-level block. Applies to `program-to-spec` and `program-to-manual`.
+- Button `icon` also takes the SAP icon name from the GUI status or ALV toolbar (`ICON_TRANSPORT`, `ICON_OPERATOR`, …). It is drawn with the matching glyph, and an SAP icon with no glyph draws none instead of its name.
+- A wide ALV grid is no longer cut off. The canvas stopped at 1600px, and columns past it were dropped without a warning. It now grows with the grid, and toolbars and screen fields still wrap within 1600px.
+- ALV column headers no longer run into the next column: a narrow column is widened for its header (up to 120px) and a header that still does not fit ends with "…". A cell whose value is `red`, `yellow` or `green` is drawn as a status lamp, as SAP shows traffic-light and LED icon columns.
+- Output screens can show the ALV grid title (`SET_GRID_TITLE` / layout `grid_title`) as a bar above the grid, set with `alv.gridTitle` (and on `screens[]`).
+- A screen with a `screen` block but no `columns` or `panes` (a confirmation or input popup) is drawn with its title, buttons and fields only. Before, an empty grid was drawn under it.
+
+## [0.6.29] — 2026-09-30
+
+### Added — `program-to-spec` documents every screen, not only the main ALV
+
+- `image-spec.json.screens[]` draws each further dynpro — popups, detail screens — as `screen-<dynnr>.png`, with the same shape as `alv` (GUI status title and buttons, grid toolbar, columns, sample rows). Buttons on those screens are checked like main-screen buttons, and a popup's confirm button can join the flow of the button that opened it through `codes`.
+- `alv.screen.fields` draws the dynpro elements between the GUI status and the grid: input fields, checkboxes, output-only text and push buttons. A push button sends a PAI function code, so it carries a flow badge like a status button.
+- The skill now reads `GetScreen` for every dynpro except the selection screen and writes one subsection per screen: its image, what calls it, and a PBO / PAI table built from the flow logic (every PBO module, every PAI function code, `AT EXIT-COMMAND`, value-request modules). A screen element is no longer described as "inferred" before its dynpro has been read.
+- The xlsx template has no slot for further screens; `build-spec.mjs` skips them.
+
+### Fixed — flowchart layout
+
+- A tall message node (a long list of messages) overlapped the message node above it or ran off the top of the image. Its decision now moves down until the message node clears, and several message nodes of one decision stack with bent connectors.
+- The label of a loop-back line along the right edge was cut off at the image border. It now stays inside the image.
+- Checked on a real report with a main ALV screen, three popups and a push button on the screen: no render warnings, every screen drawn.
+
+## [0.6.28] — 2026-09-30
+
+### Added — `program-to-spec` draws output-screen buttons and one business flow per button
+
+- The ALV image (xlsx Sheet 3 and MD/HTML §3.2) now shows what a user can press: `image-spec.json.alv.screen` draws the GUI status title and its application toolbar (PAI function codes), `alv.toolbar` / `panes[].toolbar` draw the ALV grid toolbar, and `standardToolbar` adds the generic ALV icons.
+- `buttonFlows` draws one business flow per button that changes data or starts processing (`flow-<n>-<CODE>.png`, embedded in MD/HTML §4.2). The button in the ALV image carries the same number as an orange badge. The main process flow now stops at the ALV output and points to the button flows.
+- `codes[]` on a `buttonFlows` entry lets one flow cover a whole business stage — its online, batch and cancel buttons, and a button on the other toolbar (`{ "code", "source" }`). All of them carry the flow's badge, so a screen with ~30 function codes needs ~10 flows.
+- `render-md-images.mjs` and `build-spec.mjs` warn about business buttons without a flow, flows without a button, codes claimed twice and malformed `codes`. Navigation buttons opt out with `"flow": false`. The xlsx keeps the badges; the template has no slot for the flow images.
+- New `skills/program-to-spec/alv-buttons-schema.md`: how to inventory PAI and ALV buttons, the JSON shape, stage grouping and where the flows go in the spec.
+
+### Changed — `program-to-spec` HTML output and message references
+
+- `md-to-html.mjs` builds a web page instead of a plain document: contents sidebar with section folding, cover fact card, cross-linked SAP names with tooltips, sortable / filterable tables, callouts, and an All / Functional toggle that hides technical detail. New `skills/program-to-spec/html-markup.md` lists the Markdown conventions the page reads (`[!WARNING]` callouts, `<span class="tech">`, `<!-- audience: technical -->`).
+- Text elements are read in English (`language: "E"`) whatever the spec language; a program often has no text pool in it.
+- Every message is written as `CODE (English text)` — `M07 (Already FD Done)`, `E01 (IR amount is different from SO.)` — in prose, tables and flow images. Message class texts come from T100 through `GetSqlQuery` with explicit fields, the one table read the skill now allows. On BASIS < 7.50, where `GetSqlQuery` is unavailable, the `WITH` text in the source is used.
+
+### Fixed
+
+- Flowcharts: a decision with several branches that skip nodes (a three-way "which button?") drew all their labels on one spot, so only the last one was readable. Each extra branch now leaves on its own row with its own label.
+- `md-to-html.mjs` held literal NUL bytes, so git treated it as a binary file. It now uses `\u0000` escapes.
+- Checked end to end on two real ALV cockpit reports (8 and 29 function codes): no render warnings, a badge on every business button.
+
+## [0.6.27] — 2026-09-30
+
+### Fixed — hooks, skill frontmatter and manifests checked against Claude Code 2.1.285
+
+- `setup-init` / `setup-maintenance` were registered under `SessionStart` with the matchers `init` / `maintenance`, which belong to the `Setup` event, so they never fired. They are now `Setup` hooks and run on `claude --init-only`, `claude -p --init` and `claude -p --maintenance`. Setup output does not reach Claude, so both print a plain-text summary instead of `additionalContext`.
+- `PreCompact` accepts only a top-level `decision`, so the context `pre-compact.mjs` and `project-memory-precompact.mjs` injected was dropped. Both are removed. `SessionStart` already runs again after a compact; `project-memory-session.mjs` now also carries recent transports and recent objects.
+- Skills ended with `Task: {{ARGUMENTS}}`, which is not a substitution. They now use `$ARGUMENTS`.
+- Skill frontmatter: removed the unrecognised `level:` key; `name:` no longer repeats the `sc4sap:` prefix (Claude Code adds it, commands are unchanged); `trust-session` declares `user-invocable: false` instead of the unrecognised `internal: true`, so a typed `/sc4sap:trust-session` is refused by Claude Code itself.
+- Manifests: removed `statusLine` from `plugin.json` and `examples` from the marketplace entry (both stripped at load; the HUD status line is still installed into `settings.json` by `install-statusline.mjs`). `claude plugin validate` now passes without warnings.
+- Docs: agent count 25 → 26 (CBO Stocker), skill count 14, missing `package-to-process` row and broken table-of-contents anchors in README / FEATURES (en, ko, ja, de).
+- Removed the empty `rules.md`.
+
+## [0.6.26] — 2026-09-29
+
+### Fixed — `program-to-spec` selection-screen mockup dropped buttons and radio buttons
+
+- The Selection PNG (xlsx Sheet 3 and MD/HTML §3.1) could only draw input fields and checkboxes in two fixed blocks. Push buttons, toolbar buttons and extra blocks were dropped, and radio groups were drawn as checkboxes, although the analyst had already extracted them into the Parameters table.
+- `image-spec.json.selection` now takes `blocks[]` (one per `SELECTION-SCREEN BEGIN OF BLOCK`) with typed items: `param`, `range` (`noIntervals`, `noExtension`), `checkbox` (`labelLeft`), `radioGroup` and `checkboxGroup` (`label` for a leading `COMMENT`, vertical or horizontal layout), `pushbutton`, `comment`, plus `toolbar` for `FUNCTXT_nn` buttons. `default` / `defaultHigh` are drawn inside the input box.
+- New `skills/program-to-spec/selection-schema.md` gives the ABAP → JSON transcription rules: one item per field (no merging), defaults followed into methods called from `INITIALIZATION`, dynamic fields kept with a note, `NO-DISPLAY` fields and their `COMMENT … FOR FIELD` omitted.
+- The legacy `fields` / `optionFields` shape still renders. `build-spec.mjs` and `render-md-images.mjs` print a `⚠` warning when they see it or when an `R_*` field sits in `optionFields`.
+- Rendering changes: plain `PARAMETERS` no longer show a multiple-selection ▼ button (only `SELECT-OPTIONS` do). Checkboxes sit in the label column as on a real screen. Long notes widen the image instead of being clipped, and long defaults are cut with `…`.
+- Checked against three real selection screens (push button + three radio groups; titled radio and checkbox lines; seven blocks with dynamic fields).
+
+## [0.6.25] — 2026-09-29
+
+### Changed — main-thread model now follows the session (`model: inherit`)
+
+- The remaining 12 skills declared `model: sonnet` (analyze-code, analyze-symptom, analyze-cbo-obj, compare-programs, create-object, create-program, package-to-process, program-to-spec) or `model: haiku` (mcp-setup, sap-doctor, sap-option, trust-session). All 14 skills now declare `model: inherit`.
+- Why: a host that opens a session on a chosen model (e.g. an Agent SDK app) applies a skill's `model:` as a switch, so the pin replaced the user's choice. The prompt cache is per model, so each switch also re-wrote ~26–46k tokens of cached context. Measured through an Agent SDK host: `ask-consultant` pinned to Haiku cost $0.43 for a one-sentence answer ($0.28 of it the re-write), and $0.09 with `inherit` on a Haiku session; `analyze-code` pinned to Sonnet cost more on a Haiku session than on a Sonnet one.
+- `trust-session` runs inside twelve other skills, so a pin there switched the model twice per pipeline.
+- Work that needs a specific tier already runs in `Agent(...)` dispatches with their own model; those are unchanged. The per-skill session-model suggestion moved to `docs/skill-model-architecture.md` § 2 as guidance. A preference-driven main-thread pin is not offered: frontmatter is applied before the skill body runs, so a runtime setting cannot change it.
+
+## [0.6.24] — 2026-09-28
+
+### Added — user-selectable model dispatch mode
+
+- New option `modelDispatch` in `~/.sc4sap/preferences.json`, edited via `/sc4sap:sap-option` → "dispatch". `auto` (default) keeps the current behavior: sub-agent models follow `common/model-routing-rule.md` and the skill MDs. `user-defined` makes every multi-agent skill ask Opus / Sonnet / Haiku before each dispatch group, with the rule-based choice marked `(Recommended)`.
+- A parallel fan-out counts as one group (one question); an escalation after `BLOCKED` asks again. Phase banners mark user-chosen models with `(user)`.
+- Rules: `common/model-dispatch-mode.md`. The setting is user-level, so it applies to every profile and project, and needs no MCP reconnect.
+
+### Fixed — HUD cost used stale prices
+
+- The HUD price table billed Opus 4.6 / 4.7 at $15 / $75 per MTok (actual $5 / $25) and had no entry for Opus 5 / 5.5, Sonnet 5 or Fable 5 / 5.1, which fell back to Sonnet 4 rates. Added the current models, per-model cache-read prices (Opus 5.5 $0.20, Fable 5.1 $0.25) and family fallbacks so a newly released version gets its family's price instead of Sonnet's.
+- Cache writes were always priced at the 5-minute rate (1.25× input). Claude Code writes 1-hour cache entries (2× input); `costOf()` now prices them from `usage.cache_creation.ephemeral_1h_input_tokens`.
+- `scripts/ci/diagnose-failure.mjs` defaults to `claude-sonnet-5` (was `claude-sonnet-4-6`).
+
+### Changed — agents follow the newest model of each tier
+
+- Agent frontmatter pinned `claude-opus-4-7` / `claude-sonnet-4-6` / `claude-haiku-4-5`, so dispatches kept running on those versions after newer models shipped. All 26 agents now use the Claude Code aliases `opus` / `sonnet` / `haiku`, which track the newest model of each tier.
+- `ask-consultant` and `setup` now declare `model: inherit` instead of `haiku`. Their main thread routes, checks consultant divergence, reviews the synthesis or triages setup failures, which Haiku handles poorly. Claude Code documents a skill's `model:` as a per-turn switch; the current CLI registers the switch but still answers on the session model, so this guards against the switch starting to apply.
+- Phase banners, response-prefix examples and docs name the tier (`Opus` / `Sonnet` / `Haiku`) instead of a version. The response prefix still reports the answering model's full name, read at runtime.
+
+### Changed — reasoning effort per agent
+
+- `sap-stocker` and `sap-doc-specialist` set `effort: medium` (lookup / inventory work). Every other agent keeps Claude Code's per-model default (observed `high` for Sonnet, `xhigh` for Opus 4.7); `sap-writer` gets none because its Haiku base does not accept effort and `create-program` Phase 3 reuses it on Opus. Policy: `common/model-routing-rule.md` § Reasoning effort.
+
+### Changed — teamMode deliberation no longer uses Claude Code agent teams
+
+- teamMode in `ask-consultant`, `compare-programs`, `create-program` (Type A / B / D) and `analyze-code` (Type B) called `TeamCreate`, passed `team_name` and sent `shutdown_request` messages. Claude Code no longer has `TeamCreate` and ignores `team_name`, and the consultant / reviewer agents cannot write the position files the protocol asked for (`Write` / `Edit` are disallowed).
+- Members now return their POSITION / CHALLENGE / REFINEMENT / CONCUR / ESCALATE block as their reply, and the orchestrating skill writes it to the same `~/.claude/tasks/<run-id>/` files as before, so the synthesis steps are unchanged. Each round is a fresh parallel dispatch with peer blocks inline; there is no shutdown step. A malformed block is re-requested once.
+- Block format is fixed (bare TYPE line, plain `field: value` lines, `target` = member name). Cosmetic drift is normalized by the lead instead of re-requested. When two members each adopt the other's stance on the same point, the lead records a `LEAD RESOLUTION`. The lead checks the synthesis writer's output against the task files before showing it.
+- Rules: `common/team-consultation-protocol.md` § Transport. Design: `docs/team-consultation-architecture.md`.
+
+## [0.6.23] — 2026-09-22
+
+### Changed — `sap-executor` carries 92 SAP tools instead of 142
+
+- Sub-agents load the full schema of every tool in their `tools:` list on each dispatch (no deferred loading there). Dropped from `sap-executor`: the 25 `Delete*` tools (deletion needs a per-call user approval, so it belongs on the main thread), 16 `Read*` duplicates of `Get*` tools (`ReadClass` / `ReadProgram` stay), and unit-test / CDS unit-test authoring, metadata extension and package tools. A minimal dispatch went from 71.4K to 59.7K tokens.
+- Added `ActivateObjects`, `WriteTextElementsBulk` and `ReadTextElementsBulk`, which `create-program` and `create-object` already told the executor to call but it did not have. Checked with a `create-object` run on DEV (data element in `$TMP`: create → activate via `ActivateObjects` → verify).
+- Vendor pin: `ea0de8c` (4.8.7) → `9a948be` (4.8.8, shorter tool parameter descriptions).
+
+## [0.6.22] — 2026-09-22
+
+### Fixed — table reads returned values in the wrong rows (vendor 4.8.7)
+
+- `GetTableContents` / `GetSqlQuery` merged an empty cell with the next one, so every later value in that column moved up one row. Customizing and SPRO data pulled by `extract-customizations.mjs` / `extract-spro.mjs` from tables with empty cells may hold shifted values — re-run the extraction after updating.
+- `GetProgFullCode` now reads function groups (it returned metadata XML) and resolves nested includes.
+
+### Changed — smaller MCP responses
+
+- `SearchObject` drops the duplicated raw XML (over half of each response) and defaults to 50 results; `GetTableContents` returns column names only, leaves empty cells out of rows and defaults to 20 rows (`fields` / `include_metadata` when more is needed).
+- Source tools (`GetProgram`, `GetClass`, `GetInterface`, `GetFunctionModule`, `GetInclude`, `GetProgFullCode`) accept `output: "file"`: the source goes to `.sc4sap/work/<alias>/mcp-output/src/` and the response is the path plus an outline of METHOD / FORM / MODULE blocks with line ranges (a 66 KB class → ~3 KB). The bridge sets `MCP_OUTPUT_DIR` to that folder per profile; the server refuses file writes outside it.
+- `analyze-symptom` reads large classes / programs through the file outline and only the block around the termination line; `compare-programs` greps the files instead of reading every line, and no longer asks `sap-code-reviewer` for `ReadClass` / `ReadFunctionGroup` / `ReadView`, which it does not have.
+- Vendor pin: `9e6e216` (4.8.6) → `ea0de8c` (4.8.7).
+
+## [0.6.21] — 2026-09-22
+
+### Changed — `analyze-symptom` spends less context per round
+
+- **Dump reads sized to need** (measured on an S/4HANA dump): dumps feed `RuntimeListFeeds` (~1 KB per dump) replaces `RuntimeListDumps`, which returned an empty list on that system; `RuntimeGetDumpById` metadata (~7 KB: error, exception, termination link) comes first; the ~50 KB formatted dump is read at most once and only its developer chapters (~10 KB) are used. `RuntimeAnalyzeDump` and the `summary` key facts are no longer used — they pick the wrong chapter ("System environment", unrelated line). `sap-debugger` gains `RuntimeListFeeds`.
+- **Sonnet for `quick-dump`**, Opus for `full`. A quick-dump round that cannot settle the cause returns `BLOCKED — needs full` and is re-dispatched on Opus with its findings, so nothing is fetched twice.
+- **Type C team mode removed** (debugger + BC + module consultants on Opus for up to three rounds; never runtime-validated). Open business questions become a one-line `/sc4sap:ask-consultant` suggestion in the report.
+- **Narrower reads**: web lookup only when the failure point is standard SAP code; one failing include read with tools the debugger actually has (`GetInclude` / `GetProgram` / `GetClass` / `GetFunctionModule`, never `GetProgFullCode`); `GetTransport` only for transports holding call-stack objects (max 3); customization cache grepped by name instead of read whole; list calls `top ≤ 5`; later rounds reuse prior evidence.
+- `SKILL.md` 199 → 161 lines (duplicated tool inventory replaced by a pointer to the dispatch prompt).
+
+### Changed — vendor pin bumped to abap-mcp-adt-powerup 4.8.6
+
+`scripts/build-mcp-server.mjs` — `DEFAULT_PINNED_SHA` moves from `dfc96de` (4.8.5) to `9e6e21635e032dbfb38aec474c3125d2a8516dbe` (4.8.6):
+
+- `RuntimeGetDumpById` / `RuntimeAnalyzeDump`: key facts from the dump root and termination link (they pointed at the "System environment" chapter before); new `chapters` filter for the ST22 long text (51.5 KB → 3.4 KB on a real dump), used by `analyze-symptom`.
+- `RuntimeListDumps`: per-entry HTML summaries dropped by default (−88%).
+- RFC backend resolved per call; `SAP_RFC_BACKEND=zrfc` now works (it was offered by setup / sap-option but rejected by the server).
+- `pino` / `pino-pretty` no longer skipped by `npm install --omit=dev` — fresh installs and the bridge self-heal failed with "Vendor dependency missing: pino" on 4.8.5.
+
+Refresh path for existing installs: `node scripts/build-mcp-server.mjs --update`.
+
+### Version
+
+All four version fields bumped 0.6.20 → 0.6.21.
+
+## [0.6.20] — 2026-09-22
+
+### Changed — `analyze-symptom` is read-only and checks known issues first
+
+- Never calls SAP write tools (Create/Update/Delete/Patch/Write/Activate, RunUnitTest, RuntimeRun*/RuntimeCreate*, CreateTransport) and never edits files outside teamMode protocol files — even when asked for the fix. Fixes appear only as a "Proposed fix — not applied" block; Step 4 gives pointers instead of applying them.
+- Round 1 starts with a short web lookup for dumps / error messages (≤ 2 searches, ≤ 1 fetch) built from standard identifiers only — never Z*/Y* names, SID, user IDs or data. Hits are reported as leads under "🌐 Known Issues".
+- Profiler: existing traces are analyzed; no run is started and no trace parameters are created.
+- `sap-debugger`: when the dispatching skill names a report format, that format wins over the agent's default template.
+
+### Added — HTML output (new `scripts/spec/md-to-html.mjs`)
+
+Zero-dependency converter: one self-contained `.html` from a skill's `.md` (local images inlined as data URIs, ```` ```mermaid ```` drawn by the Mermaid CDN script, YAML frontmatter as a table, GitHub-style heading ids).
+
+- `program-to-spec` — output formats are a multi-select (Markdown / HTML / Excel); HTML is converted from the `.md`, and the intermediate `.md` is removed when Markdown was not selected.
+- `package-to-process` — `formats[]` multi-select for the process document and the BPML (default Markdown + Excel); `build-bpml.mjs` gains an `.html` mode. The process document has no Excel form, so an Excel-only choice keeps its `.md`.
+
+### Added — HTML option for the remaining Markdown-producing skills
+
+Every skill that writes a Markdown document for people can now also give a single self-contained HTML file, converted from the same `.md` by `scripts/spec/md-to-html.mjs` (images inlined, Mermaid via CDN):
+
+- `compare-programs` — Step 2 reply takes `html` (Markdown + HTML) or `html only`; follow-up menu offers an HTML copy later.
+- `analyze-code` — the Step 4 "save report" action writes Markdown, HTML or both.
+- `analyze-cbo-obj` — Step 8 offers `index.html` beside `index.md` (`index.md` / `inventory.json` always stay for sibling skills).
+- `create-program` — after Phase 8, offers HTML copies of `spec.md` and `report.md` (the `.md` files stay as pipeline state).
+
+### Fixed — SubagentStop loop and agent reference files
+
+- `scripts/verify-deliverables.mjs` read `output` / `result`, which SubagentStop never sends, so every agent looked empty ("produced minimal output (0 chars, expected 50+)") and was woken again. It now reads `last_assistant_message`, skips when the field is absent or `stop_hook_active` is set, and matches plugin-namespaced agent types (`sc4sap:sap-…`).
+- `agents/agent_details/bc/*` moved to `agent-refs/bc/*` — files under `agents/` were being registered as agents (with all tools). References in `sap-bc-consultant` and `analyze-symptom/team-mode.md` updated.
+
+### Version
+
+All four version fields (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` root & `plugins[0]`) bumped 0.6.19 → 0.6.20. Vendor pin unchanged (`dfc96de`, 4.8.5).
+
+## [0.6.19] — 2026-09-22
+
+### Removed — hooks that never fired or only added noise
+
+`hooks/hooks.json` drops from 22 hook commands to 14; for SAP MCP tool calls, only `permission-approver` still runs on each call.
+
+| Script | Why it went |
+|---|---|
+| `transport-validator`, `activation-trigger`, `project-memory-posttool`, `syntax-checker` | Matched only `mcp__mcp-abap-adt__*`; the plugin's tools are `mcp__plugin_sc4sap_sap__*`, so they never fired |
+| `keyword-detector` | Routed to skills that do not exist (`cancel`, `autopilot`, `ralph`, `release`) |
+| `skill-injector` | Scanned only top-level `skills/*.md` (skills live in sub-folders) for a `triggers:` key no skill has |
+| `persistent-mode` (+ ralph/autopilot branches in `session-start` / `session-end`) | Modes that no skill creates |
+| `permission-handler`, `code-simplifier` | Never approved anything / off by default with a one-line message |
+| `spro-injector` | Injected 15–20 KB of module config on every keyword-matched prompt, no de-duplication; consultants load what they need themselves |
+| `pre-tool-enforcer`, `post-tool-verifier` | Generic tips on every tool call; false "Command failed" on normal output containing "failed" / "error" |
+| `run.cjs` | Wrapper that spawned a second node process per hook — hooks now run `node <script>` directly |
+
+`tests/validation/plugin-structure.test.ts` now asserts that every hook command points at an existing script instead of a minimum event count.
+
+### Changed — lighter agent context
+
+- **Tier 1 is three files** (`data-extraction-policy`, `sap-version-reference`, `naming-conventions`). `context-loading-protocol` and `model-routing-rule` are orchestrator-only; every agent's `<Mandatory_Baseline>` now lists its files explicitly and carries the two rules it needs inline (expansion limit, `BLOCKED` on a hard blocker). Saves about 18 KB per dispatch.
+- **Module consultants read `configs/{MODULE}/*.md` on demand** — only the file the question needs instead of all six up front (about 20–30 KB per consultant dispatch).
+- **Report-only writer dispatches moved to the main thread** — `create-object` Step 7, `analyze-code` Branch B briefing, `analyze-cbo-obj` Branch B briefing. Same section templates, no extra agent.
+
+### Fixed — stale docs
+
+- Multi-profile paths: `common/spro-lookup.md`, `common/customization-lookup.md` and 17 agents now point at `.sc4sap/work/<alias>/…` (legacy `.sc4sap/…` fallback). `sap-option`, `sap-doctor` (Layer 1 active-profile check, Layer 6 default `odata`) and `mcp-setup` no longer describe the single-file `.sc4sap/sap.env` flow.
+- `create-object`, `analyze-code`, `analyze-symptom`, `compare-programs`, `analyze-cbo-obj` said the main thread runs on Haiku; their frontmatter has been `sonnet` since 0.6.6 — wording corrected.
+- `program-to-spec`: removed the deprecated `mode: "dontAsk"` Agent parameter.
+
+### Fixed — HUD context window ignored the subscription plan
+
+The `ctx` segment read its window from the pricing table, so models missing from it (e.g. `claude-opus-5[1m]`) fell back to 200K — a Max session at 633K rendered `633K/200K` (capped at 100%). New `scripts/hud/lib/context-window.mjs` resolves it on its own: `SC4SAP_CONTEXT_WINDOW` env > statusLine payload size > `[1m]` model id > model limit (Haiku, Claude 3, Opus/Sonnet 4.0–4.1 stay 200K) > `claudeAiOauth.subscriptionType` in `~/.claude/.credentials.json` (`max` / `team` / `enterprise` → 1M, `pro` / other → 200K) > 200K. `pricing.mjs` no longer carries a `ctx` column.
+
+### Upstream dependency
+
+- `abap-mcp-adt-powerup`: `SAP_RFC_BACKEND=zrfc` was offered by setup and `sap-option` but rejected by the runtime selector (`src/lib/rfcBackend.ts`) even though `zrfcProxy.ts` implements the backend. The selector now routes `zrfc` to it. Needs a vendor release + pin bump before it reaches plugin users.
+
+### Version
+
+All four version fields (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` root & `plugins[0]`) bumped 0.6.18 → 0.6.19. Vendor pin unchanged (`dfc96de`, 4.8.5).
+
+## [0.6.18] — 2026-08-23
+
+### Fixed — tier readonly guard let four mutating tools through on QA and PRD
+
+`scripts/hooks/tier-readonly-guard.mjs` matched mutations by the prefixes `Create` / `Update` / `Delete` plus a three-entry runtime-execution set. Four registered tools that mutate SAP matched neither and were reachable on QA and PRD profiles:
+
+| Tool | What it does |
+|---|---|
+| `ActivateObjects` | activates ABAP objects |
+| `PatchGuiStatus` | modifies a GUI status |
+| `WriteTextElementsBulk` | bulk-writes the text pool |
+| `RuntimeCreateProfilerTraceParameters` | configures a server-side profiler trace |
+
+Verified by running the hook as a real child process against an isolated project with `SAP_TIER=PRD`: all four returned no decision (allow) before the change and `deny` after it, while six controls (`Create*` / `Update*` / `Delete*` / `RunUnitTest` / `RuntimeRun*` / `GetProgram`) were unchanged in both directions.
+
+- `Patch`, `Write` and `Activate` join `MUTATION_PREFIXES` as prefixes rather than literals — each matches exactly one registered tool today, so a future sibling is covered on the day it ships. `Create` still matches by `startsWith`, so `RuntimeCreate*` is not swept in and stays in the explicit runtime set.
+- `RuntimeCreateProfilerTraceParameters` joins `RUNTIME_EXEC` alongside the `RuntimeRun*` executions it configures.
+- `data/sc4sap-mcp-tools-write.md` gains the missing `Write*` section. It already listed `ActivateObjects` and `PatchGuiStatus` as write tools, so the classification and the guard now agree.
+
+**No behaviour change on DEV** — the guard returns `null` on its first line for that tier, confirmed for all ten probed tools. On QA/PRD nothing usable is lost: activation and text-pool writes are unreachable once `Create*` / `Update*` are denied, and profiler-trace setup pairs with runs that were blocked already.
+
+Known gap, deliberately left open and documented in code: `RuntimeCallDispatch` invokes an arbitrary `ZMCP_ADT_DISPATCH` action, and the action name is a runtime argument — so neither layer can separate a write action from a read one by tool name alone. Tracked separately.
+
+Gap originally spotted by the SC4SAP-PoC read-only tool policy; the profiler-trace tool and the `RuntimeCallDispatch` note were found while verifying that report.
+
+### Changed — vendor pin bumped to abap-mcp-adt-powerup 4.8.5
+
+The MCP server's `readonlyGuard.ts` carried the identical two lists, so for these four tools **neither** layer of the two-layer defence blocked — while the hook still told the user the server guard was backing it up. Fixed upstream in the same shape and released as 4.8.5.
+
+- `scripts/build-mcp-server.mjs` — `DEFAULT_PINNED_SHA` bumped from `9fc6da6bf1b056edd29179edbc812e69f80c5363` (4.8.4) to `dfc96de9201d8450cbc59062a8ab67de88788ddc` (4.8.5).
+- Refresh path for existing installs: `node scripts/build-mcp-server.mjs --update`.
+
+### Version
+
+All four version fields (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` root & `plugins[0]`) bumped 0.6.17 → 0.6.18.
+
+## [0.6.17] — 2026-08-23
+
+### Fixed — hook payload never reached hook scripts (all sc4sap hooks silently broken)
+
+`scripts/run.cjs` launched each hook script with `execFile` but never forwarded the parent's stdin — the hook payload JSON — to the child process. Every stdin-reading hook (`skill-injector`, `keyword-detector`, `spro-injector`, `pre-tool-enforcer`, `transport-validator`, `post-tool-verifier`, `session-*`, …) therefore blocked until its internal `readStdin()` 5s timeout fired and then ran with an empty payload. Under Claude Code's stricter per-hook timeout enforcement this surfaced as `UserPromptSubmit hook timed out after 3s`, leaving keyword / skill / SPRO injection non-functional.
+
+- `scripts/run.cjs` rewritten from `execFile` to `spawn(..., { stdio: 'inherit' })`, wiring stdin/stdout/stderr straight through so hooks receive their payload and Claude Code receives their output. Per-invocation latency dropped from ~5.3s to ~0.3s; the 30s safety kill and clean exit-0-on-error behavior are retained. Affects every hook event (UserPromptSubmit, PreToolUse, PostToolUse, SessionStart/End, …).
+
+### Changed — trust-session permission model migrated to a PreToolUse hook
+
+A Claude Code permission update deprecated the Agent tool's `mode` parameter: `mode: "dontAsk"` is now ignored, and sub-agents inherit the parent session's permission mode (agent frontmatter `permissionMode` may override it, but there `dontAsk` means auto-DENY, not auto-approve). `trust-session`'s Layer 2 — passing `mode: "dontAsk"` on every `Agent` dispatch — was therefore fully non-functional, and pipeline sub-agents began prompting mid-run.
+
+- New PreToolUse hook `scripts/permission-approver.mjs` (wired in `hooks/hooks.json`, matcher `mcp__plugin_sc4sap_sap__.*|mcp__mcp-abap-adt__.*`) returns `permissionDecision: "allow"` for all SAP MCP handlers **except** `GetTableContents` / `GetSqlQuery`, which fall through to normal prompting plus the `block-forbidden-tables` safeguard. The hook runs in both the main thread and sub-agents, independent of session permission mode, so SAP MCP calls are auto-approved without the deprecated parameter.
+- `skills/trust-session/SKILL.md` rewritten: no longer enumerates SAP MCP tools in `settings.local.json` and no longer references `mode: "dontAsk"`; it now only pre-approves `Agent(*)` dispatch and `.sc4sap/**` state-file I/O, and documents the hook as the SAP MCP approval mechanism.
+- Removed the now-ignored `mode: "dontAsk"` directive from 22 skill files across `create-program`, `create-object`, `analyze-cbo-obj`, `analyze-code`, `analyze-symptom`, `compare-programs`, `package-to-process`, `ask-consultant`, and `setup`. (`program-to-spec` is owned by another contributor and was left untouched.)
+
+Reference: hooks `permissionDecision` output (code.claude.com/docs/en/hooks); sub-agent permission modes (code.claude.com/docs/en/sub-agents).
+
+### Changed — setup wizard `SAP_SYSTEM_TYPE` values renamed
+
+The setup wizard's system-type question (Step 4 profile creation) now offers `s4hana | cloud | ecc` instead of `onprem | cloud | legacy`, giving a clearer SAP product/deployment taxonomy (`s4hana` = S/4HANA on-prem, `cloud` = S/4HANA Cloud, `ecc` = ECC). The field is a descriptive label with no behavioral branching, so the rename is low-risk.
+
+- `scripts/sap-profile-cli.mjs` — new-profile default `'onprem'` → `'s4hana'`.
+- `scripts/sap-option-tui.mjs` — validator `['onprem','cloud','legacy']` → `['s4hana','cloud','ecc']`.
+- `skills/setup/wizard-step-04-profile-creation.md`, `skills/sap-option/SKILL.md`, `skills/sap-option/migration.md` — documented values + example updated.
+- Note: existing profiles carrying the old value keep working; re-save via `/sap-option` expects the new values.
+
+### Removed — `deep-interview`, `team`, `release` skills (OMC leftovers)
+
+Three skills carried over from the original oh-my-claudecode base were retired. `deep-interview` and `team` were generic OMC orchestration leftovers; `release` (CTS transport release workflow) is no longer needed. The `teamMode` feature woven into `create-program` / `compare-programs` / `ask-consultant` / `analyze-symptom` / `analyze-code` (and `common/team-consultation-protocol.md`) is a separate, sc4sap-native capability and is **retained** — only the standalone `/sc4sap:team` skill was removed.
+
+- Deleted `skills/{deep-interview,team,release}/`.
+- Registration updated: `.claude-plugin/plugin.json` + `marketplace.json` descriptions and skill count (17 → 14 workflow skills); `CLAUDE.md` skill list; `docs/FEATURES.md` (+ ko/ja/de) table rows and sections; `tests/validation/skills.test.ts` expected-skills list.
+- Cross-references to the removed skills cleaned from `common/model-routing-rule.md`, `common/active-modules.md`, `skills/trust-session/SKILL.md`, `skills/compare-programs/SKILL.md`, `skills/ask-consultant/SKILL.md`, `skills/create-object/SKILL.md` (+ `dispatch-prompts.md`), and `skills/create-program/SKILL.md`. (`program-to-spec` is owned by another contributor; its stale `deep-interview` cross-reference was left untouched.)
+
+### Version
+
+All four version fields (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` root & `plugins[0]`) bumped 0.6.16 → 0.6.17.
+
+## [0.6.16] — 2026-07-20
+
+### Added — BPML deliverable for `package-to-process`
+
+`package-to-process` gains a second deliverable alongside the process `.md`: a **BPML (Business Process Master List)** in Excel and/or Markdown.
+
+- `scripts/spec/build-bpml.mjs` (new) — zero-dependency OOXML/Markdown builder. CLI: `node scripts/spec/build-bpml.mjs <bpml.json> <out.xlsx|out.md>`; output format follows the extension. Emits a localized overview sheet plus an always-English `BPML` sheet, and per-L1 flow sheets with embedded sequence images anchored at column A.
+- `skills/package-to-process/bpml-render.md` (new) — Step 6b render contract: BPML spec-JSON schema, builder CLI, output paths, and language rules. Intermediate spec JSON is kept under `_img/` for regeneration.
+- `skills/package-to-process/SKILL.md` / `workflow.md` — new Step 1-6b bundled `AskUserQuestion` collects **output language** (ko / en / ja / other, defaulting to the detected conversation language) and **BPML format** (`xlsx` / `md` / `both`). Language now applies to both the process `.md` and the BPML; sheet 2 stays `BPML` in English as lingua franca.
+- `scripts/spec/screen-image-renderer.mjs` — extended to supply the flow images the BPML sheets embed.
+
+### Changed
+
+- BPML workbooks no longer contain intra-workbook hyperlinks (user decision); `std_cbo` column widened to a minimum of 12.
+- Removed a stray `CHANGE_ME.xlsx` build artifact from the repo root.
+
+### Version
+
+All four version fields (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` root & `plugins[0]`) bumped 0.6.15 → 0.6.16.
+
+## [0.6.15] — 2026-06-09
+
+### Added — `package-to-process` skill (End-to-End business-process documentation)
+
+New workflow skill `skills/package-to-process` reverse-engineers a CBO package into an E2E business-process Markdown: auto-detected TCode entry points → AI process grouping (PR→PO→GR→IR style) → per-process narrative + Mermaid flowchart + sequenceDiagram + step tables. Auto-chains `sap-stocker` when CBO inventory is missing. Registered across `CLAUDE.md`, `.claude-plugin/marketplace.json` + `plugin.json` (16 → 17 workflow skills), and both READMEs.
+
+- `skills/package-to-process/` — `SKILL.md`, `workflow.md`, `dispatch-analyst.md`, `dispatch-stocker.md`, `dispatch-writer.md`, `document-template.md`, `grouping-heuristics.md`.
+
+### Added — diagram image pipeline (program-to-spec v12 / diagrams v13)
+
+- `program-to-spec` v12 — branching flowchart + Markdown image embedding; `scripts/spec/render-md-images.mjs` (new).
+- diagrams v13 — `screen-image-renderer.mjs` gains `renderSequenceDiagramSVG` / `renderProcessMapSVG` (high-quality PNG sequence diagrams with lifelines, sync/return arrows, alt/opt/loop frames; macro process DAG with longest-path layering). Selection / ALV mockups restyled to the v13 look (rounded drop-shadow frames, solid header bar). `scripts/spec/render-process-images.mjs` (new) drives the package-to-process diagram image pipeline.
+
+## [0.6.14] — 2026-04-29
+
+### Added — ECC DDIC read + classic BAdI lookup (server-side bridge FMs)
+
+Vendor pin bumped to abap-mcp-adt-powerup `4.8.4` (`9fc6da6`). Adds 4 new ECC-only ADT capabilities that legacy ECC 7.40 does not expose natively:
+
+- `GetTable` / `GetStructure` / `GetDataElement` / `GetDomain` now return full definitions on ECC via OData FunctionImports → server-side RFCs (`ZMCP_ADT_DDIC_TABL_READ`, `_DTEL_READ`, `_DOMA_READ`). `TABL_READ` covers both Table and Structure (TABL/STRU share the TABL DDIC category).
+- `GetBadiImplementations` — new read-only handler that finds Z/Y implementations of a classic BAdI definition via `ZMCP_ADT_DDIC_BADI` (SXS_ATTR-based). Returns `kind=classic` with implementation list (`impl_name`, `impl_class`, `package`, `methods_redefined`) or `kind=unknown` for kernel BAdIs / non-existent definitions.
+
+Server-side ABAP source (DEV-only, function group `ZMCP_ADT_UTILS`, `$TMP`) is bundled under `abap/`:
+
+- `abap/zmcp_adt_ddic_tabl_read_ecc.abap`
+- `abap/zmcp_adt_ddic_dtel_read_ecc.abap`
+- `abap/zmcp_adt_ddic_doma_read_ecc.abap`
+- `abap/zmcp_adt_ddic_badi_ecc.abap`
+
+`scripts/build-mcp-server.mjs` — `DEFAULT_PINNED_SHA` bumped from `244928a19b252e53e4105c550df0b891b1685de5` (4.8.3) to `9fc6da6bf1b056edd29179edbc812e69f80c5363` (4.8.4). Refresh path for existing installs: `node scripts/build-mcp-server.mjs --update`.
+
+## [0.6.13] — 2026-04-27
+
+### Fixed — vendor pin bumped to abap-mcp-adt-powerup 4.8.3 (resolves issue #43)
+
+`brokerFactory.js` in vendor 4.8.1 (commit `b41d4df`) read `SAP_PASSWORD` directly from `.env` and used the literal `keychain:<service>/<account>` reference string as the Basic Auth password — bypassing `profile.js`'s `resolveSecret()`. Every ADT tool call returned `Anmeldung fehlgeschlagen` for profiles using keychain-stored credentials. `ReloadProfile` did not help (broker session store cache survived `invalidateConnectionCache`). The upstream fix landed in 4.8.3 (`244928a`) — both Variant 2 (`createBrokerWithEnvFileStore`) and Variant 3 (`loadEnvFileIntoSessionStore`) now resolve `keychain:` references before seeding the session store.
+
+- `scripts/build-mcp-server.mjs` — `DEFAULT_PINNED_SHA` bumped from `b41d4df546e2cccfa3f6693b656e16868b6facb6` (4.8.1) to `244928a19b252e53e4105c550df0b891b1685de5` (4.8.3). 4.8.2 (transport handler hybrid read + parser + MIME fix) is also picked up by the bump.
+- Refresh path for existing installs: `node scripts/build-mcp-server.mjs --update`. Verifies HEAD matches the new SHA + reinstalls vendor `node_modules` (deps unchanged 4.8.1 → 4.8.3, but reinstall is idempotent and cheap).
+- Workaround documented in issue #43 (plaintext `SAP_PASSWORD` in `~/.sc4sap/profiles/<alias>/sap.env`) is no longer needed after the bump.
+
+Reported by @icharmi-byte. Verified locally on profile HKT-DEV.
+
+## [0.6.12] — 2026-04-24
+
+### Added — Phase 1B execution-style user choice (create-program, Type D gating)
+
+Type D (Phase 1A↔1B Interview Synthesis) now activates only when the user explicitly chooses it. Immediately after Phase 1A close (`module-interview.md` finalized, business ambiguity ≤ 5%), the skill prompts a binary choice: **(1) Legacy sequential** 7-dim `sap-analyst` + `sap-architect` interview (one question per turn), or **(2) Type D team synthesis** — analyst + architect + 1-2 consultants compose `interview.md` directly via R1 POSITION + optional R2 REFINEMENT rounds. Previous auto-gating based on `module_set.length ≥ 2` is replaced with a recommendation heuristic that only fires when the user defers with "알아서" / "you decide". Persists to `.sc4sap/program/{PROG}/state.json` → `phase1b.execution_style` (`legacy` | `type-d`).
+
+- `skills/create-program/team-mode-d.md` — §Gating rewritten: user-choice prompt + recommendation heuristic + persistence schema (+39 lines, 85 → 114)
+- `skills/create-program/agent-pipeline.md` — "Phase 1A → 1B Execution-Style Gate" section inserted between Phase 1A and Phase 1B
+- `skills/create-program/interview-gating.md` — execution-style gate reference added at Phase 1A close enforcement line
+- `skills/create-program/SKILL.md` — `<Team_Mode>` block clarifies Type D is user-chosen, not auto-gated
+
+### Added — program-to-spec conforms to skill-model-architecture + team-consultation docs
+
+`program-to-spec` was the 13th user-facing skill but missing from `docs/skill-model-architecture.md` § 2 (which claimed "12 user-facing skills") and lacked the standard block conventions (Response_Prefix, Phase_Banner, Team_Mode, Session_Trust_Bootstrap, Agent_Composition) that `compare-programs` and other Sonnet-main skills carry.
+
+- `skills/program-to-spec/SKILL.md` — frontmatter `model: sonnet` + 5 standard blocks (145 → 178 lines). `Agent_Composition` codifies: `sap-analyst` Opus for Step 3 narrative extraction, `sap-writer` Haiku base for L1/L2 (Sonnet override for L3/L4 depth), `sap-critic` Opus for L4 line-range verification gate.
+- `skills/program-to-spec/workflow-steps.md` — Phase Banner emission added at Step 3 dispatches (3.analyst / 3.writer / 3.critic)
+- `docs/skill-model-architecture.md` — scope updated to "13 user-facing skills", §2 table row added, §3 dispatch map sub-section added, Pattern 3 override example (`sap-writer` → Sonnet for L3/L4 specs) added
+- `docs/team-consultation-architecture.md` + `.ko.md` — §6 gating table row: `program-to-spec` N/A (single-object read-only reverse-engineering), with future-extension note for L3/L4 depth + ≥ 2-module `GetWhereUsed` graph scenario
+
+### Fixed — `sc4sap:` subagent_type prefix sweep across skill docs
+
+Every `Agent(...)` dispatch example in skill MDs now uses the fully-qualified `"sc4sap:sap-<name>"` form — bare `"sap-<name>"` fails at runtime due to Claude Code plugin auto-namespacing (memory `feedback_sc4sap_subagent_prefix`). Files touched: `skills/analyze-cbo-obj/workflow-steps.md`, `skills/analyze-code/workflow.md`, `skills/analyze-symptom/workflow-steps.md`, `skills/ask-consultant/SKILL.md`, `skills/ask-consultant/team-rounds.md`, `skills/compare-programs/team-mode.md`, `skills/compare-programs/workflow.md`, `skills/create-object/workflow-steps.md`, `skills/create-program/inventory-lookups.md`, `skills/create-program/multi-executor-split.md`, `skills/create-program/phase6-buckets.md`. `phase6-buckets.md` additionally reformats the 4-bucket dispatch block from the abbreviated positional signature to full JSON form with `description` + `prompt`.
+
+### Validated — Phase 7 Type D runtime (Phase 1A↔1B bridge, create-program)
+
+First end-to-end Type D validation on S4-DEV (profile switched from HKT-DEV). Target: ZCOR00010 — raw material COGS variance report on plant 1710 / USD / S/4HANA 2022. 4-way synthesis (`sap-analyst` + `sap-architect` + `sap-co-consultant` + `sap-mm-consultant`) × 2 rounds (R1 POSITION bundled on Phase 1B Dims 1-7 → R2 REFINEMENT on Dim 5 data-source only). Convergence: **7/7 CONCUR**, residual_disagreement = []. Key withdrawals: `sap-mm-consultant` withdrew MBEW-VERPR for variance-axis (conceded MLDOC authority to CO); `sap-co-consultant` narrowed MBEW "fallback only" to "price-history authority" (accepted MM's MBEWH period-trail scope). Final Dim 5 architecture: 3-axis business model (price-history MBEW/MBEWH × actual-COGS MLDOC × GL-impact ACDOCA) backed by 3 custom CDS views. Wall-clock: ~12 min; 11 audit files under `.sc4sap/team-audit/create-program-p1b-zcor00010-20260424-130820/`. User-facing report: `.sc4sap/program/ZCOR00010/phase7-type-d-report.md`.
+
+## [0.6.11] — 2026-04-24
+
+### Added — `runtime-deps/` bundle integrity verification (offline, Stage 3-lite v1)
+
+The keyring bundle landed in 0.6.9 had no tamper detection — any modification to a committed `.node` binary (intentional or accidental) would go unnoticed. 0.6.11 closes that gap with an offline integrity check.
+
+- `runtime-deps/keyring/integrity.json` — new manifest. Per package, records the SHA-512 `npmIntegrity` copied verbatim from `package-lock.json` (provenance) plus per-file SHA-256 hashes in `ssri` format (tamper detection). Schema version 1, 5 packages, 19 files on initial generation.
+- `scripts/bundle-keyring.mjs` — two new subcommands:
+  - `--refresh-integrity` — regenerates `integrity.json` from the current bundle + `package-lock.json`. Run after any bundle update.
+  - `--verify` — offline SHA-256 re-hash and compare against the recorded manifest. Reports missing / unexpected files and hash mismatches individually. Exit codes: `0` pass, `7` manifest missing, `8` integrity failed.
+- `docs/bundle-integrity.md` — new maintainer doc covering the workflow, `--verify` semantics, what is and is not detected, and Stage 3-lite v2 (upstream re-verification) as deferred scope.
+
+End-to-end verified: clean `--verify` passes on 19 files across 5 packages; a single-byte tamper in `runtime-deps/keyring/node_modules/@napi-rs/keyring/index.js` is detected with exact expected-vs-actual SHA-256 diff; re-bundling restores the expected state.
+
+CI hook not auto-installed — the repo has no `.github/workflows/`. `docs/bundle-integrity.md` documents pre-commit / pre-push invocation until CI is wired.
+
+### Fixed — 0.6.9 CHANGELOG misstated bundled `@napi-rs/keyring` version
+
+The 0.6.9 release note said the bundled package was `@napi-rs/keyring@1.1.0`. The actual installed and committed version per `package-lock.json` was **`1.2.0`**; the 0.6.9 bundle bytes are unchanged, only the description was wrong. `integrity.json` records the correct `1.2.0` version and registry `resolved` URL for every entry.
+
+## [0.6.10] — 2026-04-24
+
+Follow-up patch to 0.6.9. Three independent fixes + one missing implementation; no behavioural changes to the keychain bundle landed in 0.6.9.
+
+### Fixed — HUD showed "SAP not configured" when launched from a subdirectory
+
+`scripts/hud/lib/sc4sap-status.mjs` resolved the active profile only at the exact `cwd`, while the MCP server walked up the ancestry chain — so launching Claude Code from a nested dev repo (e.g. the plugin source inside a larger workspace) produced HUD line 2 "SAP not configured" even though the MCP connection, `/sc4sap:sap-doctor`, and tool calls all reported the profile live.
+
+`scripts/lib/profile-resolve.mjs` now exposes a shared `findDotSc4sapDir()` + `resolveWorkspaceRoot()`. `readActiveAlias()`, `resolveSapEnvPath()`, and `resolveConfigJsonPath()` accept a `startDir` and walk up until they find a `.sc4sap/` that contains profile state (`active-profile.txt`, `sap.env`, or `config.json`) — skipping any intermediate `.sc4sap/` that holds only artifact folders (`comparisons/`, `test-reports/`, `cbo/`). Falls back to the first `.sc4sap/` on the chain when no ancestor has state. The HUD's `activeProfile()` switched to the shared resolver; downstream `SID` / `client` / `user` fields now render correctly from any subdirectory.
+
+### Fixed — Blocklist `deny` rule short-circuited by built-in `warn` pattern
+
+`scripts/hooks/block-forbidden-tables.mjs` previously returned the first matching blocklist rule (exact-table lookup first, then the first matching pattern in iteration order). If a user extended `.sc4sap/blocklist-extend.txt` with a strict `deny` rule for a table that also matched a looser built-in `warn` pattern, the `warn` match could win the first-match race and the aggregate `deny > warn` decision downstream never saw the user's `deny`.
+
+Replaced the single-match helper with `matchBlocklistAll()` (returns every matching rule) + `effectiveHitForTable()` (collapses matches by `deny > warn > first-rule`). User overrides in `blocklist-extend.txt` now always take precedence over built-in defaults for the same table.
+
+### Added — `scripts/prune-cache.mjs` implementation (Layer 7 cache hygiene)
+
+`skills/sap-doctor/SKILL.md` advertised `/sc4sap:sap-doctor --prune` and `--prune --yes` flags since the doctor skill was introduced, but the underlying `scripts/prune-cache.mjs` implementation had never been committed — running the option hit "script not found" at runtime.
+
+Ships the missing script (227 LOC, dry-run by default, `--yes` to actually delete; `--json` for machine output). It resolves the active plugin version from the marketplace `plugin.json`, walks `~/.claude/plugins/cache/<marketplace>/sc4sap/` to list stale version directories (each typically carrying its own ~500–800 MB `vendor/abap-mcp-adt/node_modules/` subtree), reports sizes in MB, and refuses to run when the active version cannot be resolved. Never touches the marketplace directory or the active cache directory.
+
+`skills/sap-doctor/diagnostic-checks.md` gains a "Layer 7 — Cache Hygiene" section: PASS at zero stale versions, INFO when stale < 500 MB, WARN when stale ≥ 500 MB. Runs independently of Layer 2/3 connectivity so cache bloat is reported even when the SAP system is unreachable.
+
+## [0.6.9] — 2026-04-24
+
+### Fixed — Keychain storage silently degraded to plaintext on git-clone installs
+
+Claude Code plugin installation is a **git clone**, not an `npm install`. `@napi-rs/keyring` was declared in `optionalDependencies`, but since end users receive only what is committed to the repo (and `node_modules/` is gitignored), the plugin shipped with no keyring module at all. At runtime `scripts/sap-profile-cli.mjs` → `loadKeyring()` → `require('@napi-rs/keyring')` failed silently, `keychainWrite()` threw `KeychainUnavailableError`, and `cmdAdd` caught the error and wrote `SAP_PASSWORD=<plaintext>` to `sap.env` with only a stderr warning that the setup wizard never surfaced. New profiles created via `/sc4sap:sap-option` therefore stored passwords in plaintext regardless of OS keychain support.
+
+**Fix — bundle keyring under `runtime-deps/`**:
+- `runtime-deps/keyring/package.json` — `createRequire` anchor.
+- `runtime-deps/keyring/node_modules/@napi-rs/keyring/` — JS wrapper (56 KB).
+- `runtime-deps/keyring/node_modules/@napi-rs/keyring-<platform>/` — native binaries for `win32-x64-msvc`, `darwin-x64`, `darwin-arm64`, `linux-x64-gnu` (combined ~4.3 MB).
+- `scripts/bundle-keyring.mjs` — idempotent `npm install` output → `runtime-deps/` copy, with `--check` to verify all 4 platform binaries are present.
+- `scripts/sap-profile-cli.mjs` — `loadKeyring()` now uses a `KEYRING_REQUIRE` anchored at `runtime-deps/keyring/package.json` so resolution goes through the committed bundle, not the plugin-root `node_modules/` (which is empty for end users).
+- `.gitignore` — negation rule `!runtime-deps/**/node_modules/**` so the bundle is tracked despite the global `node_modules/` ignore.
+- `.gitattributes` — NEW, `runtime-deps/** -text` + `*.node binary` so native binaries and package metadata survive cross-platform checkout without CRLF normalization.
+
+**Verified end-to-end**: `git checkout-index` to a tmp location (simulates a first-time user's machine with no `node_modules/` populated) → `node scripts/sap-profile-cli.mjs version` runs → `createRequire` at the bundle anchor resolves `@napi-rs/keyring` from `runtime-deps/keyring/node_modules/@napi-rs/keyring/index.js`. Separate 2026-04-23 verification confirmed the same chain delivers HTTP 200 on SAP OData `$metadata` with a keychain-referenced password on a live SAP system.
+
+**Bundle size**: 4.4 MB committed (Linux x64 binary dominates at 3.0 MB; Windows/macOS binaries each ~450–470 KB).
+
+**Post-install behaviour**: `/sc4sap:sap-option` and the setup wizard now store new profile passwords as `SAP_PASSWORD=keychain:<service>/<alias>/<user>` and write the plaintext into the OS-native credential store (Windows Credential Manager / macOS Keychain / libsecret), matching the design documented in `scripts/sap-profile-cli.mjs` since 0.6.0. Existing plaintext profiles remain functional; they can be migrated in-place by deleting and re-adding the profile after upgrading to 0.6.9.
+
+### Deferred — Stage 3-lite bundle integrity verification
+
+Design recorded in `.sc4sap/stage3-lite-bundle-integrity.md`. Adds an `integrity.json` sidecar under `runtime-deps/<module>/` populated from `package-lock.json`'s npm SHA-512 integrity field, plus `scripts/bundle-keyring.mjs --verify` which recomputes the hash of the bundled tarball contents and fails CI on mismatch. Out of scope for 0.6.9 so the keychain fix can ship immediately; will land in a follow-up patch.
+
+## [0.6.8] — 2026-04-24
+
+### Reverted — `<Main_Thread_Dispatch>` enforcement layer (0.6.7)
+
+Reverts the enforcement layer introduced in 0.6.7. The per-skill `model:` frontmatter returns to being a **declarative hint**; no active sub-dispatch is performed.
+
+**Why**: 2026-04-23 smoke validation (`.sc4sap/test-reports/enforcement-validation-20260423.md`) confirmed a Claude Code architectural limit — sub-dispatched `general-purpose` agents do not receive the `Agent`/`Task` spawn tool and do not have the `mcp__plugin_sc4sap_sap__*` MCP tools in their deferred-tool registry. The 0.6.7 design assumed a Sonnet sub-orchestrator could fan out to phase agents (`sap-code-reviewer`, `sap-stocker`, `sap-analyst`, …); empirically it cannot. 12/14 in-scope skills were functionally broken under 0.6.7; the 2 file-only skills that happened to work did so only by falling back to local file reads rather than live MCP calls.
+
+**What reverted**:
+- `common/main-thread-dispatch.md` — deleted (0.6.7 new file).
+- `common/model-routing-rule.md` — `§ Main-Thread Dispatch Enforcement` section removed; phase banner convention restored (single-dispatch skills no longer emit `phase=0 (bootstrap)`).
+- `docs/skill-model-architecture.md` — "Enforcement layer (v0.6.7+)" note removed.
+- `skills/*/SKILL.md` × 14 — `<Main_Thread_Dispatch>` block removed from `ask-consultant`, `sap-doctor`, `sap-option`, `mcp-setup`, `setup`, `deep-interview`, `trust-session`, `create-program`, `create-object`, `team`, `analyze-cbo-obj`, `analyze-code`, `analyze-symptom`, `compare-programs`.
+
+**What kept**:
+- Frontmatter `model:` fields remain on all 14 skills (including `deep-interview: haiku` and `team: sonnet` which were added in 0.6.7) — they serve as model-routing guidance for future redesign and for documentation readers, without runtime enforcement.
+
+**Operational impact**: users whose Claude Code session is on a larger model than a skill's declared target will see the skill run at session-model cost. This matches 0.6.6 and earlier behavior.
+
+## [0.6.5] — 2026-04-22
+
+### Changed — Publish workflow
+
+- `prepublishOnly` simplified from `"npm run build"` to `"tsc"`. The full `build` script (which also runs `scripts/build-mcp-server.mjs` to clone and verify the vendor at the pinned SHA) is preserved for manual maintainer use (`npm run build`) but no longer executes during `npm publish`.
+- Rationale: `vendor/` is not shipped in the tgz (`files` field excludes it) and the bridge re-clones it lazily at install-time, so publishing had no reason to materialize a ~500MB `vendor/abap-mcp-adt/` under the project root. This was a quality-of-life fix for maintainers.
+
+No other changes — 0.6.5 is a pure publish-workflow follow-up to 0.6.4.
+
+## [0.6.4] — 2026-04-22
+
+### Changed — Vendor pin bump
+
+- `scripts/build-mcp-server.mjs` `DEFAULT_PINNED_SHA` → `b41d4df546e2cccfa3f6693b656e16868b6facb6` (abap-mcp-adt-powerup **v4.8.1**, previously pinned at a pre-v4.8.0 SHA). npm installers of sc4sap 0.6.4 now receive the ECC DDIC write fallback vendored into the plugin.
+
+No other functional changes — 0.6.4 is a pure vendor-pin follow-up to 0.6.3.
+
+## [0.6.3] — 2026-04-22
+
+### Added — ECC DDIC write path via OData RFC fallback
+
+ECC 7.40 ADT REST lacks `/sap/bc/adt/ddic/{tables,dataelements,domains}` endpoints. This release ships the runtime integration so MCP DDIC tools route through server-side FMs when `SAP_VERSION=ECC`.
+
+- **ABAP side** — 6 new pre-release-branch source files under `abap/` (`zmcp_adt_ddic_{activate,doma,dtel,tabl}_ecc.abap`, `zmcp_adt_{dispatch,textpool}_ecc.abap`) feeding 4 RFC FMs (`ZMCP_ADT_DDIC_{TABL,DTEL,DOMA,ACTIVATE}`) + 4 OData FunctionImports on `ZMCP_ADT_SRV`.
+- **MCP server** (`abap-mcp-adt-powerup` v4.8.0+) — 9 DDIC handlers patched with `SAP_VERSION=ECC` branch. Full: Domain C/U/D + DataElement C/U/D (type_kind=domain only) + Table Delete. Inform-only: Table Create/Update (CDS-DDL translator deferred).
+
+### Changed
+
+- `docs/FEATURES.{md,ko,de,ja}.md`, `docs/multi-profile-design.md`, `docs/odata-backend.md`: refresh matrix and narrative for the ECC DDIC path.
+- `skills/sap-option/*`, `skills/setup/{rfc-backend-selection,wizard-steps,wizard-step-09-abap-objects}.md`: SAP option UX and wizard refinements.
+- `abap/zmcp_adt_dispatch.abap`, `abap/zmcp_adt_textpool.abap`: local refinements aligned with the new ECC variants.
+
+Note: 0.6.1 and 0.6.2 were tagged but their notes were not written; see `git log v0.6.0..v0.6.2` for the intermediate changes.
+
+## [0.6.0] — 2026-04-21
+
+### Added — Multi-environment profiles (Dev / QA / Prod)
+
+Register multiple SAP systems per company and hot-switch between them without restarting Claude Code. Targets the multinational 3-tier landscape (`KR-DEV`, `KR-QA`, `KR-PRD`, `US-DEV`, …).
+
+**Key pieces**
+
+- **Profile storage** — user-level definitions at `~/.sc4sap/profiles/<alias>/{sap.env,config.json}` (shared across repos); project-level pointer at `<project>/.sc4sap/active-profile.txt`; artifacts per-profile under `<project>/.sc4sap/work/<alias>/` with read-only cross-view.
+- **Tier-based readonly enforcement** — `SAP_TIER` enum (`DEV` | `QA` | `PRD`). QA/PRD profiles auto-block `Create*/Update*/Delete*`, `CreateTransport`, and runtime-execution tools. Two-layer defense:
+  - Layer 1: PreToolUse hook `scripts/hooks/tier-readonly-guard.mjs` (installed via `scripts/install-hooks.mjs`) — fast, explanatory deny.
+  - Layer 2: MCP-server guard in `abap-mcp-adt-powerup/src/lib/readonlyGuard.ts` — uncircumventable; fires even when the hook is missing, disabled, or the plugin is not yet installed. `ReloadProfile` always allowed (the escape hatch back to DEV).
+- **OS keychain passwords** — `SAP_PASSWORD=keychain:sc4sap/<alias>/<user>` references resolved via `@napi-rs/keyring` (Windows Credential Manager / macOS Keychain / libsecret). Declared as `optionalDependencies`; headless environments fall back to plaintext with a loud warning. Added to both `sc4sap` and `abap-mcp-adt-powerup` package.json.
+- **MCP server extensions** (`abap-mcp-adt-powerup`) — new `src/lib/{profile,readonlyGuard,secrets}.ts` (37 new unit tests, no regression on 276 existing), `ReloadProfile` MCP tool, launcher startup hook that activates the profile before the config manager runs. Guard wired into `BaseHandlerGroup.registerToolOnServer` so every tool is checked from a single chokepoint.
+- **`sap-option` multi-profile UX** — new `skills/sap-option/profile-management.md` and `skills/sap-option/migration.md` companions describing switch / add / remove / edit / purge / migrate flows. Status snapshot now shows active profile + tier.
+- **HUD** — Line 2 renders `{alias} [{tier}]` with a 🔒 when tier ≠ DEV. No color is used; the lock icon is the single, theme-independent readonly signal.
+- **Profile CLI** (`scripts/sap-profile-cli.mjs`) — JSON-in/JSON-out backend for skill flows: `list`, `show`, `switch`, `add`, `remove`, `purge`, `migrate`, `detect-legacy`, `keychain-set`, `keychain-delete`, `version`.
+- **Legacy auto-detection** — SessionStart hook `scripts/legacy-migration-banner.mjs` emits a one-time notice when a project has `.sc4sap/sap.env` but no `active-profile.txt`, pointing the user to `/sc4sap:sap-option`. The migration wizard records the version threshold (`multiProfileSince: "0.6.0"`) so the CLI can make upgrade-aware decisions.
+
+**Design docs**: [`docs/multi-profile-design.md`](multi-profile-design.md), [`docs/multi-profile-implementation-plan.md`](multi-profile-implementation-plan.md).
+
+### Non-breaking
+
+Projects that never migrate keep working: the profile loader falls back to legacy `<project>/.sc4sap/sap.env` and treats missing `SAP_TIER` as `DEV` (permissive). Migration is explicit — triggered only when the user runs `/sc4sap:sap-option` after the banner.
+
+## [0.5.4] — 2026-04-20
+
+### Fixed — Plugin manifest version alignment (critical)
+
+The Claude Code plugin marketplace reads **`.claude-plugin/plugin.json` version**, not `package.json` version. Previous v0.4.0–v0.5.3 releases bumped only `package.json`, so users running `/plugin` saw stale `0.3.10` from `plugin.json` while GitHub showed v0.5.3. All three manifests are now synced to `0.5.4`:
+
+- `.claude-plugin/plugin.json` version: `0.3.10` → `0.5.4`
+- `.claude-plugin/marketplace.json` plugins[0].version: `0.2.5` → `0.5.4`
+- `.claude-plugin/marketplace.json` root version: `0.2.2` → `0.5.4`
+- `package.json` / `package-lock.json`: `0.5.3` → `0.5.4`
+- `README.md` / `README.ko.md` / `README.ja.md` / `README.de.md` badge: `v0.2.4` → `v0.5.4`
+
+### Changed — Manifest descriptions updated
+
+`plugin.json` and `marketplace.json` descriptions now reflect all v0.4.x/v0.5.x additions: 16 skills (incl. `ask-consultant`, `compare-programs`), 4-Tier context loading, Sonnet/Opus model routing, OK_CODE binding pattern, Phase 4/6 hardening + Multi-Executor Split.
+
+### Note — Semantic content unchanged
+
+No skill / agent / rule file changed in this release. Only version fields + manifest descriptions. Users on 0.3.10 who upgrade to 0.5.4 get the accumulated v0.4.0–v0.5.3 feature set.
+
+## [0.5.3] — 2026-04-20
+
+### Added — `/sc4sap:ask-consultant` skill
+
+New user-facing direct-Q&A skill for consulting with a module consultant agent without running a full create-program / create-object pipeline.
+
+- **`skills/ask-consultant/SKILL.md`** *(new, 117 lines)* — routes the user's question to the matching `sap-{module}-consultant` (SD/MM/FI/CO/PP/PS/PM/QM/TR/HCM/WM/TM/BW/Ariba/BC) based on keyword inference + explicit mention. Multi-module questions dispatch 2-3 consultants in parallel. Answers are rendered against the configured SAP environment (`sapVersion`, `industry`, `country`, `activeModules` from `.sc4sap/config.json` + `.sc4sap/sap.env`).
+- **Read-only**: no `Create*` / `Update*` / `Delete*` / `Activate*` / `CreateTransport` calls. DDIC metadata reads are fine; row extraction (`GetTableContents` / `GetSqlQuery`) is prohibited.
+- **Inherits v0.5.2 conventions**: `<Response_Prefix>` block at top (prefix format `[Model: <main> · Dispatched: Opus×<n> (<consultants>)]`); consultant agents load Tier 1 + Tier 2 per `common/context-loading-protocol.md` so `configs/{MODULE}/*.md` are always available.
+
+### Added — `/sc4sap:compare-programs` skill documentation
+
+`compare-programs` existed in the skills folder but was missing from `docs/FEATURES.md` skill table. Added to all 4 language variants (en/ko/de/ja).
+
+### Changed
+
+- **`README.md` / `README.ko.md` / `README.ja.md` / `README.de.md`** — new "Ask Consultant" row in the Core Capabilities table; `FEATURES →` link updated from "18 skills" to "19 skills" count.
+- **`CLAUDE.md`** (sc4sap root) — `/sc4sap:ask-consultant` added to the Skills list.
+- **`docs/FEATURES.md` (en/ko/de/ja)** — skills table now has 16 entries (added `compare-programs` + `ask-consultant`); heading updated from "18 Skills" to "16 Skills" (matches actual count).
+
+## [0.5.2] — 2026-04-20
+
+### Added — 4-Tier Context Loading Model + Response Prefix
+
+**Tier 1 (Global Mandatory — every agent/skill, every session)** — five files now unconditionally loaded at session start: `data-extraction-policy.md` (safety), `sap-version-reference.md` (platform), `naming-conventions.md` (namespace), `context-loading-protocol.md` (meta), `model-routing-rule.md` (routing).
+
+**Tier 2 (Role-Mandatory — per agent role group)** — fixed additional set loaded at session start based on the agent's declared role group. Seven role groups:
+
+| Role group | Agents | Tier 2 adds |
+|---|---|---|
+| Code Writer | executor, qa-tester, debugger | clean-code, abap-release-reference, transport-client-rule, include-structure |
+| Reviewer | code-reviewer, critic | clean-code, abap-release-reference, include-structure (per-bucket narrowing) |
+| Planner / Architect | planner, architect | include-structure, active-modules, customization-lookup, field-typing-rule |
+| Analyst / Writer | analyst, writer | active-modules |
+| Doc Specialist | doc-specialist | *(none — task-driven)* |
+| Module Consultant | 14 module consultants | spro-lookup, customization-lookup, active-modules, configs/{MODULE}/*.md |
+| Basis Consultant | bc-consultant | transport-client-rule, configs/common/*.md |
+
+**Tier 3 (Triggered)** — unchanged from v0.5.0 (ALV, paradigm, CALL SCREEN, ECC, Cloud, module, industry, country, DDIC, FM, text, constant).
+
+**Tier 4 (Per-Task Kit)** — unchanged (skill phase / Wave / reviewer bucket declaration).
+
+### Added — Response Prefix Convention
+
+Every `/sc4sap:*` skill-triggered response now begins with `[Model: <main-model> · Dispatched: <sub-summary>]` so the user sees at a glance which model is doing the work. Defined in `model-routing-rule.md` § *Response Prefix Convention*; each of the 15 `/sc4sap:*` SKILL.md files has a `<Response_Prefix>` block pointing to the convention.
+
+### Changed
+
+- **`common/context-loading-protocol.md`** — rewritten around the 4-tier model with role-mandatory tables.
+- **25 `agents/*.md` files** — each gained a `<Mandatory_Baseline>` block identifying its role group and Tier 2 additions (at `<Agent_Prompt>` entry, before `<Role>`).
+- **15 `skills/*/SKILL.md` files** — `<Response_Prefix>` block after `</Purpose>`.
+- **`common/model-routing-rule.md`** — added § *Response Prefix Convention* (88 → 128 lines).
+- **`CLAUDE.md`** — top intro now names the 4 tiers + the 5 Tier-1 files explicitly.
+
+### Expected effect
+
+- Tier 1/2 reads happen once per session, not once per turn → cache friendly.
+- Tier 4 kit declarations remain minimal (narrow per wave/bucket).
+- Per-dispatch token savings vs v0.5.0: additional ~15% on consultant dispatches (configs/{MODULE}/*.md no longer ambiguously loaded).
+- Response prefix gives the user real-time visibility into model routing without opening transcripts.
+
+## [0.5.1] — 2026-04-20
+
+### Added — Multi-Executor Split for Phase 4 bulk work
+
+- **`skills/create-program/multi-executor-split.md`** *(new, 71 lines)* — Threshold table + 3 split strategies (A: by program range, B: by object class, C: within single program) + shared-transport / single-activation coordination rules. Planner decides single vs 2-way vs 3-way at Phase 2 sizing; Phase 4 skill reads the recommendation and dispatches accordingly.
+
+### Changed — Phase 2 planner emits sizing; Phase 4 triggers split
+
+- **`skills/create-program/agent-pipeline.md`** Phase 2 — planner now MUST emit § *Execution Sizing* into `plan.md` with `programs_count` / `includes_count` / `total_mcp_writes` / `text_elements_count` / `ddic_objects_count` and a `split_recommendation` + `split_strategy`. Phase 4 reads these to pick single vs parallel dispatch.
+- **`skills/create-program/phase4-parallel.md`** — new "Multi-Executor Split" intro section points to the companion file; Waves 3 and 4 inherit the split decision from Phase 2.
+- **`skills/create-program/spec-approval-gate.md`** — spec.md template gains § 8 *Execution Sizing* so the user sees the scale + split plan before approving.
+
+### Why
+
+The ZMMR00010–ZMMR00200 repair sweep (20 programs, ~150 MCP writes) ran as a single `sap-executor` dispatch that blew past its session budget mid-way. Thresholds + pre-computed sizing + disjoint-scope split let the same workload run as 3 parallel executors sharing a transport — faster wall-clock, lower per-call attention load, cleaner failure isolation (one blocked executor doesn't poison the other two's work).
+
+## [0.5.0] — 2026-04-20
+
+### Added — Context Loading Protocol + Model Routing Rule
+
+Two cross-cutting architectural rules that change how every `Agent(...)` dispatch in sc4sap consumes context and selects a model. Result: lower per-dispatch tokens, higher enforcement accuracy, cheaper repetitive bulk work.
+
+- **`common/context-loading-protocol.md`** *(new, 85 lines)* — `CLAUDE.md` is an index, not a payload. Every dispatch declares a **Context kit** (minimal file set) + optional triggered reads. Agents read only the kit; expansion requires a logged on-demand fetch or `BLOCKED` return. Kills the implicit "load 25 rule files just in case" anti-pattern observed in past runs.
+- **`common/model-routing-rule.md`** *(new, 88 lines)* — 3-tier heuristic (Sonnet for reads + repetitive bulk + template writes; Opus for novel code + cross-file reasoning + ambiguity; Haiku for trivial lookups). Per-phase / per-Wave routing table for `/sc4sap:create-program`. Sonnet → Opus escalation pattern for hard blockers.
+
+### Changed — Every phase now declares kit + model
+
+- **`skills/create-program/phase4-parallel.md`** — Each Wave (1 DDIC, 2 Classes/FMs/Text, 3 Includes+Main, 4 Screen/GUI, Final Activation) now lists its `**Context kit**:` + `**Model**:` at the top of its section. Wave 2 G4-prep explicitly routes to Sonnet for `CreateTextElement` × N bulk; Wave 4 Screen/GUI to Sonnet for template-based Create/Update/Verify.
+- **`skills/create-program/phase6-review.md`** — Convention Checklist header mandates that each §1–§12 is an independent bucket with its own narrow kit. Bucket-scoped reads replace the "read everything, skim checks" pattern.
+- **`skills/create-program/agent-pipeline.md`** — Top paragraph anchors the discipline to the two rule files.
+- **`agents/sap-executor.md`** — New `<Context_Kit_Protocol>` + `<Model_Selection>` sections. The large `<Shared_Conventions>` table is demoted to a LOOKUP INDEX (not a preload list).
+- **`agents/sap-code-reviewer.md`** — Same two sections; explicit per-bucket kit rule (no preloading across §1–§12).
+- **`CLAUDE.md`** — Top intro now flags the index-not-payload semantics; index adds rows for the two new rules.
+
+### Why
+
+The `/sc4sap:create-program` pipeline was running every agent with the implicit "load every common/*.md referenced by CLAUDE.md" behavior. Two measured costs: (1) per-dispatch token overhead of ~40–60% on simple repetitive tasks, (2) reviewer attention dilution — 12-bucket checklist gets skimmed because all 12 rule files are in context at once. The context kit + model routing fix both in the same release.
+
+### Expected effects
+
+- Per-dispatch tokens: −40 to −60% on Sonnet-tier work.
+- Opus usage share: −50% across `/sc4sap:create-program` (previously all Opus; now only Waves that need reasoning).
+- Phase 6 reviewer consistency: MAJOR-finding detection improves because each bucket runs with only its relevant rule in context.
+
+## [0.4.1] — 2026-04-20
+
+### Added — OK_CODE Binding Pattern for Procedural Screens
+
+- **`common/ok-code-pattern.md`** *(new, 104 lines)* — Authoritative 3-step contract for wiring screen user commands: (1) TOP declares `DATA: gv_okcode TYPE sy-ucomm.`, (2) Screen's `fields_to_containers[]` OKCODE entry has `NAME=GV_OKCODE`, (3) PAI `user_command_xxxx` FORM copies `gv_okcode` to a local, `CLEAR gv_okcode`, `CASE` on the local. Blocks the silent-failure mode where `CASE sy-ucomm.` works on the main screen but breaks on the first popup / ALV toolbar event because the popup runtime overwrites `sy-ucomm`.
+
+### Changed — Reviewer and Phase-4 Wave 4
+
+- **`skills/create-program/phase4-parallel.md`** Wave 4 — `UpdateScreen` payload MUST set `fields_to_containers[].NAME=GV_OKCODE` for the OKCODE field; Verify step now checks NAME binding in addition to flow-logic uncommenting.
+- **`skills/create-program/phase6-review.md`** §1 — New reviewer check for the 3-step contract; `CASE sy-ucomm.` inside a `user_command_xxxx` FORM is a MAJOR finding.
+- **`skills/create-program/phase6-output-format.md`** — Added OK_CODE-broken pattern to the enumerated false-positive list.
+- **`common/include-structure.md`** TOP row — Link to `ok-code-pattern.md` + explicit `CASE sy-ucomm` warning.
+- **`common/clean-code-procedural.md`** — PAI user-command routing rule references the new pattern file.
+- **`CLAUDE.md`** index — Added row linking to `ok-code-pattern.md`.
+
+### Motivation
+
+Observed during the ZMMR00010–ZMMR00200 batch fix: every `user_command_xxxx` FORM reads `sy-ucomm` directly, none bind `gv_okcode`. Programs work today on the single main screen but are time-bombs the first time a popup is introduced. The rule was missing from the plugin so first-time users could ship this bug unchallenged.
+
+## [0.4.0] — 2026-04-19
+
+### Changed — Phase 4 / Phase 6 Hardening
+
+Phase 4 and Phase 6 of `/sc4sap:create-program` now block a class of silent-failure regressions where the SAP MCP `Create*` call returned 200 but the resulting object was an empty shell, and where reviewer reported "완료" without re-verifying activation state.
+
+- **`common/text-element-rule.md`** — Four pool types (`I` / `S` / `R` / `H`) defined explicitly. Type `S` (Selection Text) is now **mandatory** for every `SELECT-OPTIONS` / `PARAMETERS` name — previously missing, which made selection screens render technical names (`S_BUDAT`, `P_FILE`) at runtime.
+- **`common/include-structure.md`** — Activation protocol made explicit (`UpdateProgram(activate=true)` does NOT cascade to sub-includes; every include must be activated individually or via batch `ActivateObjects`). Six anti-patterns enumerated as MAJOR Phase 6 findings, including Procedural `{PROG}E` presence and "5/5 활성화 OK" reports that leave sub-includes inactive.
+- **`common/procedural-sample/main-program.abap`** — Promoted to source-of-truth template for every Procedural program: 6-field header comment block, canonical include order, event-block-to-`PERFORM` delegation. Deviation now requires written justification in `spec.md`.
+- **`skills/create-program/phase4-parallel.md`**
+  - Wave 2 G4-prep: emit all applicable text-pool types with `ReadTextElementsBulk` verify before Wave 3 starts.
+  - Wave 4: enforced `Create → Update(body) → Get*(verify)` 3-step protocol for every screen and every GUI Status. `CreateScreen` + `CreateGuiStatus` alone produce empty shells and are no longer considered success.
+  - Final Step: mandatory post-`ActivateObjects` `GetInactiveObjects({PROG}*) == 0` verification. Blocks "programs activated" reports that leave sub-includes inactive.
+- **`skills/create-program/phase6-review.md`**
+  - §1 ALV: reviewer must verify `flow_logic` contains uncommented `MODULE ... OUTPUT.` / `INPUT.` lines and GUI Status has populated PFKEYS/toolbar — not just `STA` + `TIT` shells.
+  - §2 Text elements: `counts.R` / `counts.I` / `counts.S` / `counts.H` cross-checked against source declarations.
+  - §6 Include structure: Main program must contain `INCLUDE` statements (reject inlined Main); Procedural paradigm with `{PROG}E` include present is MAJOR.
+- **`skills/create-program/phase6-output-format.md`** *(new)* — Split from `phase6-review.md` to stay under the 200-line-per-MD hard limit. Holds the `review.md` template, failure-fix loop, and the enumerated false-positive patterns reviewer must reject.
+
+### Fixed
+
+- Reviewer false positives on the ZMMR00010–00200 batch build (shell-only Screen 0100, empty GUI STATUS_0100, `counts.S == 0` across all programs, ZMMR00060 and ZMMR00110 sub-includes inactive after "활성화 완료", forbidden `{PROG}E` in ZMMR00120/130/140/150, inlined-Main in ZMMR00110) motivated this change. Future regenerations of programs in this pattern will fail Phase 6 before the user sees them.
+
+### Notes
+
+- `package-lock.json` version field was stale at `0.1.0` (inconsistent with `package.json` `0.3.3`) and is now aligned to `0.4.0`.
+
+## Prior versions
+
+Releases prior to 0.4.0 were untagged. The `0.3.3` in `package.json` was an internal-only bump without a git tag or GitHub release; commit history on the `active` / `main` branches is the authoritative record for that period.

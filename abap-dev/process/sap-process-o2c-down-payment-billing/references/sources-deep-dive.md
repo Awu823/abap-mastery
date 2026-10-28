@@ -1,0 +1,17 @@
+# Sources — deep-dive.md (7S7 functional consulting depth)
+
+- SAP Help — Down Payment Request for Milestone Billing Plan (noted item, billing type FAZ/FAS): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/d16eb6535fe6b74ce10000000a174cb4.html
+- SAP Help — Milestone Billing with Down Payment Requests (Business Background + step-by-step process overview): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/f094139c39c04bb097c52086dc46b6c1.html
+- SAP Help — Down Payment Agreements in Sales Orders (billing rule 4 vs. 5, order-related-billing-only): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/ce6eb6535fe6b74ce10000000a174cb4.html
+- SAP Help — Down Payment Processing Using Milestone Billing Plans (older BKJ mechanism, fixed vs. percentage): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/466fb6535fe6b74ce10000000a174cb4.html
+- SAP Help — Final Billing with Down Payment Settlement (settlement vs. subtraction, worked USD example): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/da6eb6535fe6b74ce10000000a174cb4.html
+- SAP Help — Down Payment Register (structure, "maximum settlement per item" algorithm, reservation vs. posting): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/c002d852c5334a479203386ec5af2759.html
+- SAP Help — Enabling Individual Sales Order Items for Advanced Down Payment Processing (down payment variant R, item categories CBAO/CTAX/CTAD, date categories 03/04, delivery block priority): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/c6779b3379624f1a9ba42f30cbb63e37.html
+- SAP Help — Sales Order Statuses Relevant for Advanced Down Payment Processing (header/item down payment status, delivery block status): https://help.sap.com/docs/SAP_S4HANA_CLOUD/a376cd9ea00d476b96f18dea1247e6a5/4ec022273d9c47a09b8cab683ead8e89.html
+- SAP Help — How to Set Deviating Tax Codes in Down Payment Requests for Intracommunity Supply (condition type TTX1, billing category P): https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/7598cb3c47584e0cba02029b7bb81254.html
+- SAP Help — Down Payments with Multi-Level Tax: https://help.sap.com/docs/SAP_S4HANA_CLOUD/cdccca8e03d74101a0135863bc522b49/bf4a115449e7bb29e10000000a44538d.html
+- SAP Help — Tax Rate in Invoice with Down Payment Clearing (local-currency re-translation of down payment tax at final invoice): https://help.sap.com/docs/SAP_S4HANA_CLOUD/ee9ee0ca4c3942068ea584d2f929b5b1/419d01bd082a4059b2fa161fb0fe72b0.html
+- SAP Help — Post Customer Down Payment Requests (collection authorization, dunning/due-on date, payment block): https://help.sap.com/docs/SAP_S4HANA_CLOUD/918bca53037f408f91a2295d04ac16bc/7fecd353ca9f4408e10000000a174cb4.html
+- SAP Help — Down Payment Requests (special G/L indicator determination, posting key 19): https://help.sap.com/docs/SAP_S4HANA_CLOUD/918bca53037f408f91a2295d04ac16bc/0627d253913e4608e10000000a174cb4.html
+- SAP Help — Credit Exposure Category (open sales orders and down payments as exposure components): https://help.sap.com/docs/SAP_S4HANA_CLOUD/918bca53037f408f91a2295d04ac16bc/4afbe04131d54863868d5afd7c6d6ba3.html
+- SAP Help — Sales and Distribution in One Exposure from Operations (down payments listed as an SD exposure item): https://help.sap.com/docs/SAP_S4HANA_CLOUD/186460fdc35a4b64a713da9bb00deb1e/b57e3b57bd2b3b70e10000000a44147b.html

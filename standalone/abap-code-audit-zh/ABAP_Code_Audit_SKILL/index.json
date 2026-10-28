@@ -1,0 +1,68 @@
+{
+  "name": "abap-audit",
+  "version": "2.3.1",
+  "description": "ABAP代码审计工具 - 支持性能审计、代码质量、安全检测、来源识别",
+  "author": "WorkBuddy Agent (吴微龙)",
+  "created": "2026-04-20",
+  "updated": "2026-04-20",
+  
+  "entry_points": {
+    "skill": "SKILL.md",
+    "scripts": {
+      "main": "scripts/frm_main.py",
+      "audit": "scripts/frm_audit.py",
+      "audit_single_file": "scripts/frm_audit_single_file.py",
+      "file_handler": "scripts/frm_file_handler.py",
+      "source_detector": "scripts/frm_source_detector.py",
+      "report_generator": "scripts/frm_report_generator.py",
+      "pdf_builder": "scripts/frm_pdf_builder.py"
+    },
+    "config": {
+      "rules": "config/audit-rules.json",
+      "token": "config/token.json"
+    },
+    "references": {
+      "rules_detail": "references/audit-rules.md"
+    }
+  },
+  
+  "dependencies": {
+    "python": ">=3.8",
+    "optional": ["weasyprint", "reportlab", "rarfile"]
+  },
+  
+  "capabilities": {
+    "input_formats": ["txt", "md", "zip", "rar", "snippet"],
+    "output_formats": ["mb", "txt", "json", "html", "pdf"],
+    "source_detection": ["REPORT", "FUNCTION", "CLASS", "MODULE", "FORM"],
+    "audit_categories": ["performance", "security", "quality", "best_practice"]
+  },
+  
+  "keywords": [
+    "ABAP审计",
+    "代码审查",
+    "性能分析",
+    "安全检测",
+    "SAP",
+    "ABAP Code Audit",
+    "Performance Analysis",
+    "Security Scan",
+    "SQL Injection",
+    "Code Quality"
+  ],
+  
+  "files": [
+    "SKILL.md",
+    "index.json",
+    "scripts/frm_main.py",
+    "scripts/frm_audit.py",
+    "scripts/frm_audit_single_file.py",
+    "scripts/frm_file_handler.py",
+    "scripts/frm_source_detector.py",
+    "scripts/frm_report_generator.py",
+    "scripts/frm_pdf_builder.py",
+    "config/audit-rules.json",
+    "config/token.json",
+    "references/audit-rules.md"
+  ]
+}

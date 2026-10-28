@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Note: node_modules is NOT ignored here on purpose — standalone/superclaude-for-sap
+# intentionally bundles a keyring runtime dep for git-clone distribution (see its
+# .gitignore "!runtime-deps/**/node_modules/**" exception). It is committed as-is.
+# If you add node_modules elsewhere, re-ignore it explicitly.
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.swp
+.idea/
+.vscode/

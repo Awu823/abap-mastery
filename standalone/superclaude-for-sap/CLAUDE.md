@@ -1,0 +1,88 @@
+# SuperClaude for SAP (sc4sap) — Development Rules
+
+This file is the **index** of development rules — NOT a payload to preload. Detailed rules live in `common/` and `exceptions/`. Consult files on demand per [`common/context-loading-protocol.md`](common/context-loading-protocol.md) — 4-tier model: **Tier 1** global mandatory safety baseline (always loaded by every agent: `data-extraction-policy`, `sap-version-reference`, `naming-conventions`; `context-loading-protocol` + `model-routing-rule` are orchestrator-only, read by skills), **Tier 2** role-mandatory per agent group, **Tier 3** triggered reads, **Tier 4** per-task kit. Everything referenced below is MANDATORY for every sc4sap session (agents, skills, direct user requests, pipelines).
+
+## Development Standards — References
+
+| Topic | Reference |
+|---|---|
+| Naming conventions (Z/Y prefixes, module prefix, includes, FGs, tables, DEs, DOs) | [`common/naming-conventions.md`](common/naming-conventions.md) |
+| Field typing priority (Standard DE → CBO DE → new CBO DE → Data Type+Length; never `LIFNR CHAR 10`) | [`common/field-typing-rule.md`](common/field-typing-rule.md) |
+| Function Module source convention (inline IMPORTING/EXPORTING/TABLES in FUNCTION statement; no placeholder, no shadow locals) | [`common/function-module-rule.md`](common/function-module-rule.md) |
+| SAP version awareness (ECC vs S/4HANA — tables, TCodes, BAPIs, patterns) | [`common/sap-version-reference.md`](common/sap-version-reference.md) |
+| ABAP release awareness (syntax availability per release, never emit newer features than `ABAP_RELEASE`) | [`common/abap-release-reference.md`](common/abap-release-reference.md) |
+| Clean ABAP coding standards (paradigm-split) | shared baseline [`common/clean-code.md`](common/clean-code.md) + one of [`common/clean-code-oop.md`](common/clean-code-oop.md) or [`common/clean-code-procedural.md`](common/clean-code-procedural.md) chosen from the Phase 1B Paradigm dimension; also pulls in `constant-rule.md`, `text-element-rule.md`, `abap-release-reference.md` |
+| Procedural FORM naming (screen-bound suffix) | [`common/procedural-form-naming.md`](common/procedural-form-naming.md) |
+| OOP two-class split pattern | [`common/oop-pattern.md`](common/oop-pattern.md) |
+| Include structure (Main + conditional includes) | [`common/include-structure.md`](common/include-structure.md) |
+| ALV display rules | [`common/alv-rules.md`](common/alv-rules.md) |
+| Tabstrip screens (STRIP_CTRL + subscreen area + tab PUSH rows, `CALL SUBSCREEN` in PBO and PAI) | [`common/screen-tabstrip.md`](common/screen-tabstrip.md) |
+| OK_CODE binding pattern (one TOP variable + screen NAME + PAI dispatch; never `CASE sy-ucomm`) | [`common/ok-code-pattern.md`](common/ok-code-pattern.md) |
+| SPRO lookup protocol (consultant agents, IMG/Customizing) | [`common/spro-lookup.md`](common/spro-lookup.md) |
+| Customization lookup protocol (existing Z*/Y* BAdI impl, CMOD, form-exits, appends — mandatory before recommending new enhancements/extensions) | [`common/customization-lookup.md`](common/customization-lookup.md) |
+| Data extraction policy (blocklist rule, `acknowledge_risk` hard rule, refusal template) | [`common/data-extraction-policy.md`](common/data-extraction-policy.md) |
+| Transport client rule (every `CreateTransport` must receive explicit `client` from `.sc4sap/sap.env` SAP_CLIENT — never an implicit default) | [`common/transport-client-rule.md`](common/transport-client-rule.md) |
+| Blocklist (per-category table lists) | [`exceptions/table_exception.md`](exceptions/table_exception.md) (index) + `exceptions/*.md` section files |
+| Industry business-context references (14 industries) | [`industry/README.md`](industry/README.md) + `industry/*.md` |
+| Country / localization references (16 countries + EU common) | [`country/README.md`](country/README.md) + `country/*.md` |
+| Active modules — cross-module integration matrix (MM↔PS, SD↔CO, QM↔PP, …) | [`common/active-modules.md`](common/active-modules.md) |
+| Context loading protocol (CLAUDE.md is an index; every dispatch declares its minimal context kit) | [`common/context-loading-protocol.md`](common/context-loading-protocol.md) |
+| Model routing (Opus for judgment / novel code; Sonnet for template + bulk writes; Haiku `sap-checker` fan-out for fetch / verify / detect) | [`common/model-routing-rule.md`](common/model-routing-rule.md) |
+| Model dispatch mode (`auto` default = route per rule; `user-defined` = ask Opus / Sonnet / Haiku before each dispatch group; set via `/sc4sap:sap-option`) | [`common/model-dispatch-mode.md`](common/model-dispatch-mode.md) |
+
+Before any work: verify `.sc4sap/config.json` exists and contains `sapVersion`, `abapRelease`, `industry`. Every recommendation, piece of generated code, and tool invocation must respect those fields.
+
+## Critical Rules (summary — full text in referenced files)
+
+1. **Custom objects use `Z`/`Y` prefix.** Full rules: `common/naming-conventions.md`.
+2. **Match SAP version and ABAP release.** Never use S/4-only tables on ECC or syntax newer than the configured `abapRelease`. Full rules: `common/sap-version-reference.md`, `common/abap-release-reference.md`.
+3. **Transport discipline.** Every change goes on a transport. Description format: `[MODULE] [Action] [Object] - [brief]`. Never release with syntax errors or inactive objects. Every `CreateTransport` call must receive an explicit `client` parameter resolved from `.sc4sap/sap.env` SAP_CLIENT (full rule: `common/transport-client-rule.md`).
+4. **Activate after every change.** Run `GetAbapSemanticAnalysis` for syntax, then `GetInactiveObjects` to confirm no leftovers. Follow Clean ABAP conventions: `common/clean-code.md` (shared) + the paradigm-specific companion (`clean-code-oop.md` OR `clean-code-procedural.md`).
+5. **Data extraction is gated.** Before any `GetTableContents` / `GetSqlQuery`: consult `exceptions/table_exception.md` and `common/data-extraction-policy.md`. Schema/DDIC (`GetTable`, `GetStructure`, `GetView`, `GetDataElement`, `GetDomain`) is always allowed.
+6. **`acknowledge_risk` requires explicit user affirmative** (`yes` / `승인` / `authorize` / `approve` / `proceed` / `confirmed`). Ambiguous commands (`뽑아봐`, `try it`, `pull it`, `my mistake`) are NOT authorization. Per-call, per-table, per-session — never carries over. Full protocol: `common/data-extraction-policy.md` → "The `acknowledge_risk` Parameter — HARD RULE".
+7. **Industry context matters.** For config analysis / business process design / Fit-Gap: load the project's `industry/<key>.md` (from `config.json` → `industry` or `sap.env` → `SAP_INDUSTRY`). If unset, ask the user.
+8. **Country / localization context matters.** For tax, e-invoicing, banking, statutory reporting, date/number formats: load the project's `country/<iso>.md` (from `config.json` → `country` or `sap.env` → `SAP_COUNTRY`, ISO alpha-2 lowercase: `kr`, `us`, `de`, `eu-common`, …). Multi-country projects load every relevant file and flag cross-country touchpoints (intercompany, intra-EU VAT, transfer pricing). If unset, ask the user.
+
+Enforcement: L1 agent instructions → L2 this file → L3 `PreToolUse` hook (`scripts/hooks/block-forbidden-tables.mjs`) → L4 MCP server upstream guard.
+
+## Plugin Usage
+
+### Skills (`/sc4sap:` prefix)
+- `/sc4sap:setup` — Initial plugin setup + SPRO config generation (auto-invokes `trust-session`)
+- `/sc4sap:create-program` — Full ABAP program pipeline (Phase 0–8) with execution-mode gate (auto/manual/hybrid) and parallel Phase 4/6; auto-invokes `trust-session` at Phase 1
+- `/sc4sap:create-object` — Single ABAP object creation (auto-invokes `trust-session`)
+- `/sc4sap:program-to-spec` — Reverse-engineer a program into a spec artifact
+- `/sc4sap:program-to-manual` — End-user manual for one program: one HTML file, scenario steps on drawn screens with numbered callouts, check points, field reference, messages & actions, glossary, revision history; one step per A4 landscape page in print. Output `.sc4sap/manuals/<PROGRAM>-v<n>-<lang>.html` (auto-invokes `trust-session`)
+- `/sc4sap:analyze-code` — Static code review (auto-invokes `trust-session`)
+- `/sc4sap:compare-programs` — Business-angle side-by-side comparison of 2–5 ABAP programs sharing the same scenario but differing by module / country / persona (reader = consultant) → one editable, versioned HTML report (verdict matrix + *Differences only*, field differences, screens side by side, decision guide, English companion) `comparisons/<NAME>-v<n>-<lang>.html` under the profile artifact base (auto-invokes `trust-session`)
+- `/sc4sap:config-to-document` — One module's configuration documented from the live system: IMG tree, per IMG activity the real table values drawn on an SM30-style screen, customer-changed rows with their transports, configuration checks, SAP IMG documentation, consultant notes written by the module consultant agent and reviewed by `sap-critic` → one HTML file `config-docs/<MODULE>/<MODULE>-config-v<n>-<lang>.html` under the profile artifact base. MM first.
+- `/sc4sap:interface-mapping-spec` — Interface mapping specification as one editable HTML page in the classic template layout (cover, revision history, header, Source → Target grid with R / MAPPING, optional synchronous response block, conversion rules, extraction condition, field guide). SAP side read from DDIC / FM signature or, for new interfaces, from a `TABLE-FIELD` list or the module consultant's proposal; counterpart fields, DB types, conversion rules and scenario defaults proposed; in-page checks; versioned with English companion → `interfaces/<IF_ID>/<IF_ID>-v<n>-<lang>.html` under the profile artifact base
+- `/sc4sap:smartform-preview` — Expected print of one SmartForm without a print program: `GetSmartFormContent` (form XML, SmartStyle CSS, SE78 graphics) → windows drawn at their mm positions with templates, loops (sample rows) and graphics; `&fields&` filled with invented sample values sized to the DDIC types; report of cut-off cells / windows → `smartforms/<FORM>/<FORM>-preview.{jpg,html}` + `values.json` under the profile artifact base. Read-only.
+- `/sc4sap:smartform-from-pdf` — SmartForm from a PDF (or screenshot) of a printed form: `read-pdf` (texts / rules / images in mm) → `plan-form` (rules → templates, texts in the formats of existing SmartStyles — no style is created) → fields, item loops and interface decided with the user (`shape-form`) → `write-form` (Form Builder XML) → `CreateSmartForm` on DEV → `RenderSmartForm` → `compare-layout` score against the source page → `smartforms/<FORM>/` under the profile artifact base. Writes (DEV only).
+- `/sc4sap:analyze-symptom` — Dump/error root-cause analysis (auto-invokes `trust-session`)
+- `/sc4sap:analyze-cbo-obj` — Inventory a CBO package → save frequently-used Z objects to `.sc4sap/cbo/<MODULE>/<PACKAGE>/` for reuse by `create-program` / `program-to-spec` (auto-invokes `trust-session`)
+- `/sc4sap:module-to-process` — One editable HTML process map per module (or process area), built only from the TCodes users actually run (productive ST03N via `SAP_USAGE_RFCDEST`, or a saved / submitted usage list): used TCodes → programs → sources → reference graph → standard L1–L4 backbone (`configs/<M>/process-backbone.json`) → Opus hierarchy + PDD task sheets → optional module-consultant review → `assemble-model.mjs` → `build-process-doc.mjs` (BPH table, L3 scenario swimlanes, variant matrix, task sheets, appendix; edit mode + `--import`); optional BPH reconciliation (`bph-import.mjs`) and English companion (`companion.mjs`). Output `processes/<MODULE>/<MODULE>-process-v<ver>-<lang>.html` under the profile artifact base (auto-invokes `trust-session`)
+- `/sc4sap:package-to-process` — redirect to `module-to-process` for one release
+- `/sc4sap:ask-consultant` — Direct user-facing Q&A with a module consultant agent (SD/MM/FI/CO/PP/PS/PM/QM/TR/HCM/WM/TM/BW/Ariba/BC). Auto-routes by keywords, answers against the configured SAP environment. Read-only (no writes, no row extraction).
+- `/sc4sap:mcp-setup` — MCP ABAP ADT server configuration guide
+- `/sc4sap:sap-option` — View and edit `.sc4sap/sap.env` (credentials, industry, blocklist profile, HUD limits)
+- `/sc4sap:sap-doctor` — Diagnose plugin / MCP / SAP connection health
+- `/sc4sap:trust-session` — INTERNAL-ONLY — session-wide MCP permission bootstrap; direct invocation is rejected
+
+### Agents
+- Core: `sap-analyst`, `sap-architect`, `sap-code-reviewer`, `sap-critic`, `sap-debugger`, `sap-doc-specialist`, `sap-executor`, `sap-planner`, `sap-qa-tester`, `sap-writer`
+- Checker: `sap-checker` — Haiku, read-only fan-out worker (`scout` / `verify` / `detect`) that returns structured lines; the main thread dispatches N of them and one Opus agent consumes the result. Used by `/sc4sap:create-program` Phase 1A scout, Phase 4 verification, Phase 6 `detect-judge`; `/sc4sap:analyze-code` size scout, large-object detect-judge, evidence verify; `/sc4sap:compare-programs` facts extraction; `/sc4sap:analyze-cbo-obj` + `/sc4sap:package-to-process` stocking scouts.
+- Discovery: `sap-stocker` — CBO inventory / where-used graph / reusable object cataloging (Sonnet, R/O SAP + R/W on `.sc4sap/cbo/`). Consumed by `/sc4sap:analyze-cbo-obj`, `/sc4sap:create-program` (CBO reuse gate), and module consultants via their `<CBO_Stocking_Delegation>` block.
+- Basis: `sap-bc-consultant`
+- Module consultants: `sap-sd-`, `sap-mm-`, `sap-pp-`, `sap-pm-`, `sap-qm-`, `sap-wm-`, `sap-tm-`, `sap-tr-`, `sap-fi-`, `sap-co-`, `sap-hcm-`, `sap-bw-`, `sap-ps-`, `sap-ariba-consultant`
+
+### SPRO Config Reference
+`configs/{MODULE}/` contains `spro.md`, `tcodes.md`, `bapi.md`, `tables.md`, `enhancements.md`, `workflows.md` per module. Consultant agents consult these + `common/spro-lookup.md` before IMG answers.
+
+### MCP Server (mcp-abap-adt)
+All SAP interactions go through the MCP ABAP ADT server (150+ tools):
+- CRUD: `CreateClass` / `UpdateClass` / `GetClass` / `DeleteClass` (and every DDIC/runtime object type)
+- Analysis: `GetAbapAST`, `GetAbapSemanticAnalysis`, `GetWhereUsed`
+- Runtime: `RunUnitTest`, `GetUnitTestResult`, `RuntimeAnalyzeDump`
+- System: `GetTableContents`, `GetSqlQuery` (gated — see rule 5/6 above)
+- Transport: `CreateTransport`, `GetTransport`, `ListTransports`

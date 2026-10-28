@@ -1,0 +1,300 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-20",
+  "description": "ABAP代码审计规则配置 - 性能审计(必须) + 代码质量(可选)",
+  
+  "performance_rules": {
+    "P001": {
+      "name": "SELECT_ALL",
+      "severity": "high",
+      "enabled": true,
+      "message": "使用SELECT * 全字段查询，应只选择需要的字段",
+      "pattern": "SELECT\\s+\\*\\s+FROM",
+      "suggestion": "只SELECT需要的字段，减少I/O和网络传输",
+      "example_bad": "SELECT * FROM mara INTO TABLE lt_mara.",
+      "example_good": "SELECT matnr, ersda, ernam, mtart FROM mara INTO TABLE lt_mara."
+    },
+    "P002": {
+      "name": "N_PLUS_1_QUERY",
+      "severity": "high",
+      "enabled": true,
+      "message": "检测到嵌套SELECT查询，存在N+1问题",
+      "pattern": "LOOP\\s+AT\\s+.*\\n\\s*SELECT",
+      "suggestion": "使用FOR ALL ENTRIES或JOIN代替嵌套查询",
+      "example_bad": "LOOP AT lt_mara INTO ls_mara.\\n  SELECT SINGLE * FROM marc WHERE matnr = ls_mara-matnr.\\nENDLOOP.",
+      "example_good": "SELECT matnr, werks FROM marc INTO TABLE lt_marc FOR ALL ENTRIES IN lt_mara WHERE matnr = lt_mara-matnr."
+    },
+    "P003": {
+      "name": "FULL_TABLE_SCAN",
+      "severity": "medium",
+      "enabled": true,
+      "message": "无WHERE条件的SELECT语句，可能导致全表扫描",
+      "pattern": "SELECT\\s+(?:SINGLE\\s+\\*|\\*)\\s+FROM\\s+\\w+\\s+(?:INTO|APPENDING)",
+      "suggestion": "添加WHERE条件限制查询范围，避免全表扫描",
+      "example_bad": "SELECT * FROM vbak INTO TABLE lt_vbak.",
+      "example_good": "SELECT vbeln, erdat FROM vbak INTO TABLE lt_vbak WHERE erdat IN s_datum."
+    },
+    "P004": {
+      "name": "NO_WHERE_CLAUSE",
+      "severity": "medium",
+      "enabled": true,
+      "message": "SELECT语句缺少WHERE条件",
+      "pattern": "SELECT\\s+(?:\\*|COUNT\\(\\*\\))\\s+FROM\\s+\\w+\\s+INTO(?: TABLE)?\\s*@?\\w*\\s*\\.(?!\\s*(?:WHERE|ORDER|BYPASSING))",
+      "suggestion": "添加适当的WHERE条件过滤数据",
+      "example_bad": "SELECT COUNT(*) FROM mara INTO lv_count.",
+      "example_good": "SELECT COUNT(*) FROM mara INTO lv_count WHERE mtart = 'HALB'."
+    },
+    "P005": {
+      "name": "SORT_INSIDE_LOOP",
+      "severity": "high",
+      "enabled": true,
+      "message": "在循环内进行排序操作",
+      "pattern": "LOOP\\s+AT\\s+.*\\n.*SORT\\s+",
+      "suggestion": "将排序移到循环外部执行",
+      "example_bad": "LOOP AT lt_data INTO ls_data.\\n  SORT lt_result BY matnr.\\nENDLOOP.",
+      "example_good": "SORT lt_result BY matnr.\\nLOOP AT lt_data INTO ls_data.\\nENDLOOP."
+    },
+    "P006": {
+      "name": "CLEAR_INSIDE_LOOP",
+      "severity": "medium",
+      "enabled": true,
+      "message": "在循环内清空内表",
+      "pattern": "LOOP\\s+AT\\s+.*\\n.*(?:REFRESH|CLEAR)\\s+\\w+\\s*(?:WHERE)?",
+      "suggestion": "将CLEAR/REFRESH移到循环外部",
+      "example_bad": "LOOP AT lt_data.\\n  CLEAR lt_result.\\nENDLOOP.",
+      "example_good": "REFRESH lt_result.\\nLOOP AT lt_data.\\nENDLOOP."
+    },
+    "P007": {
+      "name": "SELECT_INSIDE_LOOP",
+      "severity": "critical",
+      "enabled": true,
+      "message": "在循环内执行SELECT查询",
+      "pattern": "LOOP\\s+AT\\s+.*\\n(?:(?!ENDLOOP).)*\\n\\s*SELECT",
+      "suggestion": "将SELECT移到循环外部，使用JOIN或FOR ALL ENTRIES",
+      "example_bad": "LOOP AT lt_matnr INTO ls_matnr.\\n  SELECT SINGLE * FROM mara WHERE matnr = ls_matnr-matnr.\\nENDLOOP.",
+      "example_good": "SELECT * FROM mara FOR ALL ENTRIES IN lt_matnr WHERE matnr = lt_matnr-matnr."
+    },
+    "P008": {
+      "name": "MODIFY_INSIDE_LOOP",
+      "severity": "medium",
+      "enabled": true,
+      "message": "在循环内执行数据库修改操作",
+      "pattern": "LOOP\\s+AT\\s+.*\\n(?:(?!ENDLOOP).)*\\n\\s*(?:UPDATE|DELETE|INSERT|MODIFY)\\s+\\w+",
+      "suggestion": "考虑批量操作代替循环内单条修改",
+      "example_bad": "LOOP AT lt_data INTO ls_data.\\n  UPDATE mara FROM ls_data.\\nENDLOOP.",
+      "example_good": "UPDATE mara FROM TABLE lt_data."
+    },
+    "P009": {
+      "name": "COMMIT_WORK_IN_LOOP",
+      "severity": "high",
+      "enabled": true,
+      "message": "在循环内执行COMMIT WORK",
+      "pattern": "LOOP\\s+AT\\s+.*\\n.*COMMIT\\s+WORK",
+      "suggestion": "将COMMIT移到循环外部",
+      "example_bad": "LOOP AT lt_data.\\n  MODIFY mara FROM ls_data.\\n  COMMIT WORK.\\nENDLOOP.",
+      "example_good": "LOOP AT lt_data.\\n  MODIFY mara FROM ls_data.\\nENDLOOP.\\nCOMMIT WORK."
+    },
+    "P010": {
+      "name": "READ_TABLE_WITH_BINARY_SEARCH",
+      "severity": "low",
+      "enabled": true,
+      "message": "对未排序的内表使用BINARY SEARCH",
+      "pattern": "READ\\s+TABLE\\s+\\w+\\s+.*BINARY\\s+SEARCH",
+      "suggestion": "确保内表已排序后再使用BINARY SEARCH",
+      "example_bad": "READ TABLE lt_mara WITH KEY matnr = lv_matnr BINARY SEARCH.",
+      "example_good": "SORT lt_mara BY matnr.\\nREAD TABLE lt_mara WITH KEY matnr = lv_matnr BINARY SEARCH."
+    }
+  },
+  
+  "quality_rules": {
+    "Q001": {
+      "name": "NAMING_CONVENTION",
+      "severity": "medium",
+      "enabled": true,
+      "message": "变量命名不符合规范，应使用描述性命名",
+      "pattern": "DATA:\\s+(?:lv_temp|lv_tmp|lv_temp\\d*|ls_temp|lt_temp|lo_temp)\\s+",
+      "suggestion": "使用描述性变量名，如lv_customer_name",
+      "example_bad": "DATA: lv_temp TYPE string.",
+      "example_good": "DATA: lv_customer_name TYPE string."
+    },
+    "Q002": {
+      "name": "MISSING_ERROR_HANDLING",
+      "severity": "medium",
+      "enabled": true,
+      "message": "数据库操作后缺少SY-SUBRC检查",
+      "pattern": "(?:SELECT|DELETE|UPDATE|INSERT|MODIFY)\\s+.*?(?:INTO|FROM)\\s+.*?\\.(?!\\s*(?:IF|CASE|CHECK).*?sy-subrc)",
+      "suggestion": "添加IF SY-SUBRC检查和错误处理",
+      "example_bad": "SELECT matnr FROM mara INTO ls_mara.\\nENDSELECT.",
+      "example_good": "SELECT matnr FROM mara INTO ls_mara.\\nENDSELECT.\\nIF sy-subrc <> 0.\\n  MESSAGE s001(zmsg) WITH 'No data found'.\\nENDIF."
+    },
+    "Q003": {
+      "name": "MAGIC_NUMBER",
+      "severity": "medium",
+      "enabled": true,
+      "message": "检测到魔法数字，应使用常量替代",
+      "pattern": "(?:IF|>=?|<=?|=|\\+|-|\\*|\\/)\\s*(\\d{4,})(?!\\s*(?:\\*|/|->))",
+      "suggestion": "定义CONSTANTS替代魔法数字",
+      "example_bad": "IF lv_amount > 100000.\\n  lv_discount = lv_amount * 0.1.\\nENDIF.",
+      "example_good": "CONSTANTS: lc_threshold TYPE p VALUE 100000, lc_rate TYPE p VALUE 0.1.\\nIF lv_amount > lc_threshold."
+    },
+    "Q004": {
+      "name": "HARDCODED_VALUE",
+      "severity": "medium",
+      "enabled": true,
+      "message": "存在硬编码值，应使用配置或常量",
+      "pattern": "(?:VKORG|BUKRS|VTWEG|SPART)\\s*=\\s*['\"]?\\d+['\"]?",
+      "suggestion": "使用配置表或常量定义",
+      "example_bad": "IF gs_vbak-vkorg = '1000'.",
+      "example_good": "CONSTANTS: lc_hq_org TYPE vkorg VALUE '1000'.\\nIF gs_vbak-vkorg = lc_hq_org."
+    },
+    "Q005": {
+      "name": "MISSING_COMMENT",
+      "severity": "low",
+      "enabled": true,
+      "message": "关键逻辑缺少注释",
+      "pattern": "(?:IF|CASE|WHILE|DO)\\s+[^\\n]+\\n(?!\\s*(?:\\*|\"|\\*\\\"))",
+      "suggestion": "为关键逻辑添加注释说明",
+      "example_bad": "IF lv_status = 'A'.\\n  lv_result = 'Active'.\\nENDIF.",
+      "example_good": "* Check if status is active\\nIF lv_status = 'A'.\\n  lv_result = 'Active'.\\nENDIF."
+    },
+    "Q006": {
+      "name": "OBSOLETE_SYNTAX",
+      "severity": "medium",
+      "enabled": true,
+      "message": "使用了已废弃的ABAP语法",
+      "pattern": "\\bADD\\s+\\w+\\s+TO\\b",
+      "suggestion": "使用新的ABAP语法",
+      "example_bad": "ADD 1 TO lv_counter.",
+      "example_good": "lv_counter = lv_counter + 1."
+    },
+    "Q007": {
+      "name": "LONG_METHOD",
+      "severity": "medium",
+      "enabled": true,
+      "message": "FORM或METHOD可能过长（超过100行）",
+      "pattern": "FORM\\s+(\\w+).*?(?=^FORM\\s|^ENDFORM|\\Z)",
+      "suggestion": "拆分过长的FORM为多个子FORM",
+      "example_bad": "FORM process_data. ... 200行代码 ... ENDFORM.",
+      "example_good": "FORM process_data.\\n  PERFORM: validate_data, fetch_data, save_data.\\nENDFORM."
+    },
+    "Q008": {
+      "name": "NESTED_IF_DEPTH",
+      "severity": "medium",
+      "enabled": true,
+      "message": "IF嵌套层数过深（超过4层）",
+      "pattern": "IF.*?\\n(?:.*?IF.*?\\n){4,}",
+      "suggestion": "使用CASE语句或重构代码结构",
+      "example_bad": "IF lv_a = 'X'.\\n  IF lv_b = 'Y'.\\n    IF lv_c = 'Z'.\\n      IF lv_d = 'W'.",
+      "example_good": "CASE 'X'.\\n  WHEN 'X'.\\nENDCASE."
+    }
+  },
+  
+  "security_rules": {
+    "S001": {
+      "name": "SQL_INJECTION",
+      "severity": "critical",
+      "enabled": true,
+      "message": "检测到动态SQL执行，存在SQL注入风险",
+      "pattern": "(?:EXECUTE\\s+IMMEDIATE|CONCATENATE.*INTO\\s+lv_sql)",
+      "suggestion": "使用参数化查询或SAP标准函数",
+      "example_bad": "CONCATENATE 'SELECT * FROM mara WHERE matnr = ''' lv_matnr '''' INTO lv_sql.\\nEXECUTE IMMEDIATE lv_sql.",
+      "example_good": "SELECT matnr, mtart FROM mara INTO TABLE lt_result WHERE matnr = iv_matnr."
+    },
+    "S002": {
+      "name": "HARDCODED_CREDENTIALS",
+      "severity": "critical",
+      "enabled": true,
+      "message": "检测到硬编码的密码或凭证",
+      "pattern": "(?:PASSWORD|PASSWD|PWD|PSWD|USER|USERNAME)\\s*(?:TYPE\\s+\\w+)?\\s+VALUE\\s+['\"]\\w+['\"]",
+      "suggestion": "使用SAP安全存储(SSFC_BASE64_DECODE)或GWSG_SEC_DEST类",
+      "example_bad": "DATA: lv_user TYPE string VALUE 'ADMIN', lv_pass TYPE string VALUE 'PASSWORD123'.",
+      "example_good": "CALL FUNCTION 'SSFC_BASE64_DECODE' EXPORTING bindata = lv_encoded."
+    },
+    "S003": {
+      "name": "MISSING_AUTH_CHECK",
+      "severity": "high",
+      "enabled": true,
+      "message": "关键操作缺少AUTHORITY-CHECK权限检查",
+      "pattern": "(?:DELETE\\s+FROM|UPDATE\\s+\\w+\\s+SET|INSERT\\s+INTO\\s+\\w+\\s+FROM|MODIFY\\s+\\w+\\s+FROM)\\s*",
+      "suggestion": "添加AUTHORITY-CHECK进行权限验证",
+      "example_bad": "DELETE FROM vbak WHERE vbeln = p_vbeln.",
+      "example_good": "AUTHORITY-CHECK OBJECT 'V_VBAK_VKO' ID 'ACTVT' FIELD '06'.\\nIF sy-subrc <> 0.\\n  MESSAGE e001(zmsg) WITH 'No permission'.\\nENDIF."
+    },
+    "S004": {
+      "name": "SENSITIVE_DATA_LOG",
+      "severity": "high",
+      "enabled": true,
+      "message": "敏感数据可能输出到日志或屏幕",
+      "pattern": "WRITE.*?(?:PASSWORD|PASSWD|SSN|信用卡|BANK\\s*ACCOUNT)",
+      "suggestion": "脱敏处理，不输出敏感信息",
+      "example_bad": "WRITE: 'Password:', lv_password.",
+      "example_good": "WRITE: 'Processing record:', ls_result-id."
+    }
+  },
+  
+  "best_practice_rules": {
+    "B001": {
+      "name": "USE_NEW_OPERATOR",
+      "severity": "low",
+      "enabled": true,
+      "message": "建议使用NEW操作符创建对象（ABAP 7.4+）",
+      "pattern": "CREATE\\s+OBJECT\\s+\\w+",
+      "suggestion": "改用 NEW #( ) 语法",
+      "example_bad": "CREATE OBJECT lo_helper.",
+      "example_good": "lo_helper = NEW #( )."
+    },
+    "B002": {
+      "name": "USE_INLINE_DECLARATION",
+      "severity": "low",
+      "enabled": true,
+      "message": "建议使用ABAP 7.4+内联声明",
+      "pattern": "DATA:\\s+(\\w+)\\s+TYPE\\s+\\w+\\.\\s*SELECT.*?INTO\\s+@\\1",
+      "suggestion": "使用 @DATA() 进行内联声明",
+      "example_bad": "DATA: lv_matnr TYPE matnr.\\nSELECT matnr FROM mara INTO lv_matnr.",
+      "example_good": "SELECT matnr FROM mara INTO @DATA(lv_matnr)."
+    },
+    "B003": {
+      "name": "USE_TABLE_EXPRESSION",
+      "severity": "low",
+      "enabled": true,
+      "message": "建议使用表表达式替代READ TABLE",
+      "pattern": "READ\\s+TABLE\\s+\\w+\\s+INTO\\s+\\w+\\s+INDEX",
+      "suggestion": "使用 lt_table[ index ] 表表达式",
+      "example_bad": "READ TABLE lt_mara INTO ls_mara INDEX 1.",
+      "example_good": "ls_mara = lt_mara[ 1 ]."
+    },
+    "B004": {
+      "name": "USE_TRY_CATCH",
+      "severity": "low",
+      "enabled": true,
+      "message": "建议使用TRY-CATCH处理异常",
+      "pattern": "CALL\\s+FUNCTION\\s+\\w+",
+      "suggestion": "使用TRY-CATCH包裹可能抛出异常的操作",
+      "example_bad": "CALL FUNCTION 'Z_SOME_FUNCTION'.",
+      "example_good": "TRY.\\n    CALL FUNCTION 'Z_SOME_FUNCTION'.\\n  CATCH cx_root INTO DATA(lo_error).\\n    MESSAGE lo_error->get_text( ) TYPE 'E'.\\nENDTRY."
+    }
+  },
+  
+  "rule_categories": {
+    "performance": {
+      "name": "性能审计",
+      "required": true,
+      "description": "SAP性能最佳实践检查"
+    },
+    "quality": {
+      "name": "代码质量",
+      "required": false,
+      "description": "代码规范与可维护性检查"
+    },
+    "security": {
+      "name": "安全审计",
+      "required": true,
+      "description": "安全漏洞检测"
+    },
+    "best_practice": {
+      "name": "最佳实践",
+      "required": false,
+      "description": "SAP开发标准检查"
+    }
+  }
+}

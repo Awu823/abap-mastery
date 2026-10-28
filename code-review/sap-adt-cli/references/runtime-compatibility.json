@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "generated_from": "compatibility.json",
+  "plugin_name": "sap-engineering-skills",
+  "plugin_version": "1.2.6",
+  "cli": {
+    "command": "sap-adt",
+    "pypi_package": "sap-adt-cli",
+    "npm_package": "sap-adt-cli",
+    "compatible_versions": ">=1.5.0,<2.0.0",
+    "config_dir": "~/.sap-adt-cli",
+    "homepage": "https://github.com/shrek-abaper/sap-engineering-skill",
+    "npm_range": "^1.5.0",
+    "pypi_requirement": ">=1.5.0,<2.0.0"
+  },
+  "skill": {
+    "name": "sap-adt-cli",
+    "cli_requirement": "required",
+    "cli_required_for": [
+      "every online read/write/transport operation"
+    ],
+    "cli_not_required_for": [
+      "explaining source or behavior the user already provided"
+    ],
+    "notes": "Without the CLI this skill can only guide installation/configuration; it must never fake an online result."
+  }
+}

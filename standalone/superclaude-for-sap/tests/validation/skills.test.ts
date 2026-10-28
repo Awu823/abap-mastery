@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync, existsSync, readdirSync } from 'fs';
+import { join } from 'path';
+
+const SKILLS_DIR = join(__dirname, '..', '..', 'skills');
+
+const EXPECTED_SKILLS = [
+  'analyze-cbo-obj', 'analyze-code', 'analyze-symptom', 'ask-consultant',
+  'compare-programs', 'create-object', 'create-program', 'interface-mapping-spec',
+  'mcp-setup', 'program-to-manual', 'program-to-spec', 'sap-doctor',
+  'sap-option', 'setup', 'smartform-from-pdf', 'smartform-preview', 'trust-session',
+];
+
+describe('Skills Validation', () => {
+  it(`all ${EXPECTED_SKILLS.length} skill directories exist`, () => {
+    for (const skill of EXPECTED_SKILLS) {
+      const dir = join(SKILLS_DIR, skill);
+      expect(existsSync(dir), `Missing skill directory: ${skill}`).toBe(true);
+    }
+  });
+
+  for (const skill of EXPECTED_SKILLS) {
+    describe(`sc4sap:${skill}`, () => {
+      const skillFile = join(SKILLS_DIR, skill, 'SKILL.md');
+
+      it('SKILL.md exists', () => {
+        expect(existsSync(skillFile)).toBe(true);
+      });
+
+      it('has valid frontmatter', () => {
+        if (!existsSync(skillFile)) return;
+        const content = readFileSync(skillFile, 'utf-8');
+        const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        expect(frontmatterMatch, 'Missing frontmatter delimiters').toBeTruthy();
+        const fm = frontmatterMatch![1];
+        expect(fm).toContain('name:');
+        expect(fm).toContain('description:');
+      });
+
+      // Claude Code adds the plugin prefix itself (`/sc4sap:<name>`), so the
+      // frontmatter name is the bare directory name.
+      it('name matches the directory, without the plugin prefix', () => {
+        if (!existsSync(skillFile)) return;
+        const content = readFileSync(skillFile, 'utf-8');
+        const nameMatch = content.match(/^name:\s*(\S+)\s*$/m);
+        expect(nameMatch?.[1], 'Skill name must equal its directory name').toBe(skill);
+      });
+    });
+  }
+});

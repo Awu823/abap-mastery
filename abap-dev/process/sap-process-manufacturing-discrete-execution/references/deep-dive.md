@@ -1,0 +1,62 @@
+# Deep Dive — sap-process-manufacturing-discrete-execution (BJ5, execution)
+
+Read this file when the FS requires real functional-consulting depth on discrete shop-floor execution (confirmation mechanics, backflush control, goods movements, order status/variance lifecycle) — not needed for a quick skill-discovery pass; `SKILL.md` covers that. Planning-side concepts (planning strategy, MRP, BOM explosion, scheduling) are NOT repeated here — see [Skill: sap-process-production-discrete-planning]'s own `references/deep-dive.md`.
+
+## 1. Confirmation Mechanics — Order-Level vs Operation-Level, and the Status Machine
+
+A **Confirmation** documents processing status and can be entered at two different grains, and an FS/TS must pick one, not assume both are interchangeable:
+- **Order-header confirmation** — confirming the whole order proportionally confirms every operation whose control key marks confirmation as optional/necessary. Simple, but loses per-operation detail (times, work center, personnel).
+- **Operation/phase confirmation** (time ticket or time event) — once you confirm at operation level for an order, you **cannot** switch back to order-level confirmation for that same order without first cancelling the operation-level confirmation. An FS that assumes "either way works interchangeably per document" is wrong — the mode is locked in per order once used.
+
+Confirmations drive a **status machine**, not a free-text field: an order/operation becomes **PCNF** (Partially Confirmed) once at least one but not all confirmation-required operations are confirmed, and **CNF** (Finally Confirmed) only when all required operations are finally confirmed AND no confirmable operation is left partially confirmed. A **Milestone Confirmation** (control-key indicator) is a special case: confirming a milestone operation auto-confirms all preceding operations up the sequence (proportionally, respecting scrap %), stopping at the previous milestone — useful for "just report the last inspection step, not every station" scenarios, but it means an FS's "operator scans once at the end" requirement is a milestone-confirmation design, not a custom aggregation job.
+
+**Practitioner implication:** if an FS says "the system should know the order is done when operation X finishes," check whether X is configured as a milestone (auto-cascades backward) vs. a normal confirmable operation (needs each prior operation confirmed individually) — these produce very different operator UX and go-live training needs.
+
+## 2. Backflushing — Indicator Precedence and Timing (and a Terminology Trap)
+
+**Backflushing** in discrete production order confirmation means: the system automatically posts a goods issue (movement type 261) for BOM components when the order/operation with the **Backflushing indicator** set is confirmed — no separate manual goods issue step. The indicator has a strict precedence when a production order is created: **Routing component-overview setting** (always wins, overrides everything) > **Work center Basic Data indicator** (only applies if material master says "let the work center decide") > **Material master MRP-view backflush key** (not backflushed / always backflushed / work-center-decides). The resolved indicator is copied onto the order but remains user-changeable per order.
+
+**Terminology trap:** "Backflushing" is also the *specific name* SAP uses for the Repetitive Manufacturing completion-confirmation mechanism — see [Skill: sap-process-manufacturing-repetitive-execution] — where the whole confirmation model (no discrete order, confirm against a Product Cost Collector) is built around it. In discrete production orders (this skill), backflush is one *indicator* on an otherwise order-based confirmation, not the whole process. Don't let an FS's use of the word "backflush" alone tell you which manufacturing type it's describing — check whether a discrete production order or a REM run schedule/PCC is in play.
+
+**Practitioner implication:** "component X should not be backflushed, it needs a manual pick/issue" (e.g. high-value or serialized components) is a **routing-level component override**, not a system limitation — the routing setting is authoritative over material master/work center defaults.
+
+## 3. Goods Movements at Confirmation — Automatic GR, the Serial Number Gap, and COGI
+
+Besides component backflush, a confirmation can also post **Automatic Goods Receipt** of the finished product if the confirmed operation's control key (or the order's production scheduling profile) specifies it — the GR happens in the same step as the confirmation, no separate MIGO/GR transaction. Two hard restrictions to flag against any FS:
+- **Automatic GR is not permitted for materials that require serial numbers.** If attempted anyway, the system writes an **error record** (visible via reprocessing) that *cannot be posted* — it must be deleted and the goods movement executed manually in Inventory Management. An FS asking for "auto-GR with serial number capture at confirmation" describes two features that are mutually exclusive out of the box.
+- **Automatic GR is not permitted for co-products** — each co-product needs its own explicit GR.
+- **Serial number handling is not supported for confirmations at all** — this is stated explicitly for the Fiori apps **Confirm Production Order Operation (CO11N)**, **Confirm Production Operation (F3069)**, and the **OData API: Production Order Confirmation** (`API_PROD_ORDER_CONFIRMATION_2_SRV`) alike. If an FS requires serial-number assignment during shop-floor confirmation, that is a genuine gap against standard confirmation apps/API — surface it as a scope/feasibility flag early, not something to quietly code around in a RAP wrapper.
+
+When a goods movement fails during confirmation (insufficient stock, locked material, invalid posting period), the confirmation itself can still post (configurable: show an error log and allow correction inline, or let it go through) and the failed movement lands in **Reprocess Goods Movements (COGI)** for later correction (e.g. replace storage location, delete and let inventory correct manually — note: deleting an incorrect movement does **not** auto-adjust reservations). A "goods issue/receipt didn't post but the confirmation shows as done" bug report is very often an unresolved COGI entry, not a data-consistency defect in a custom extension.
+
+**Practitioner implication:** always ask, for any FS involving serialized/batch-managed finished goods, whether auto-GR-at-confirmation is really required — if the material is serial-managed, it structurally cannot combine with automatic GR, and the FS's happy path needs a manual GR step instead.
+
+## 4. Order Status Lifecycle — What Each Gate Actually Blocks
+
+Beyond PCNF/CNF (confirmation-driven, §1), the order header carries a broader status sequence that governs what's still allowed: **REL** (Released, from planning — see [Skill: sap-process-production-discrete-planning]) → **PCNF/CNF** → **DLV** (Delivered, set once the confirmed/delivered quantity condition is met) → **TECO** (Technically Completed) → **CLSD** (Closed). Key gates an FS/TS must respect, not reinvent:
+- **TECO** is a deliberate manual (or job-driven) status that signals "no more logistics activity expected" — it does not by itself require CNF on all operations first (TECO can be set from REL status directly in some configurations), which surprises consultants coming from a stricter mental model. Once TECO'd, most goods movements/further confirmations are blocked unless explicitly reversed (**Revoke TECO / UNTECO**, itself commonly restricted by authorization).
+- **CLSD** requires the order to already be REL or TECO first — closing is the final administrative lock, distinct from technical completion.
+- Order **Closing Runs** (mass job) sweep up orders in status REL, TECO, CNF, DLV, or PREL (Partially Released, for collective orders) and move them toward Closed — relevant if an FS describes a periodic housekeeping/cleanup job rather than a manual per-order action.
+
+**Practitioner implication:** "prevent any more postings against this order" in an FS is a TECO requirement, not a custom lock/flag — but confirm whether the business also wants variance/settlement to have run first (§5), because TECO and financial closure are related but separate gates.
+
+## 5. Variance Calculation & Settlement — Two Fundamentally Different Delivery Models
+
+How a confirmed order's actual costs become a **Variance** (actual vs. target cost) and get **Settled** to Finance depends entirely on which cost-posting model the order type uses — this is a Finance-configuration decision made per order type, but it directly shapes what the execution-side confirmation experience looks like and when "the numbers are final":
+- **3F0: Event-Based Production Cost Posting (current recommended default)** — WIP/variance/settlement post **immediately with each business transaction** (goods issue, activity confirmation, delivery to stock) as journal entries in ACDOCA, supporting parallel ledgers/currencies. Target cost is calculated at each goods receipt and is not persisted in a separate table. Under the alternative "manual settlement" flavor of 3F0 (useful when backflush is used massively or orders are short-lived), settlement is instead triggered via a **Manual Settlement: Event-Based Order and PCC** job, typically once the order reaches DLV/TECO.
+- **BEI: Period-End Closing – Plant (deprecated, no new orders since end of 2025 per SAP's transition guidance)** — the classic period-end sequence (Overhead Calculation → Preliminary Settlement for Co-Products → WIP Calculation → Variance Calculation → Settlement, run via jobs/apps like KKAX/KKS1/CO88H) — this belongs to period-end close and is covered from the Finance side in [Skill: sap-process-finance-financial-close]; do not re-derive it here.
+- Regardless of model, **variance is only settled once the order is DLV or TECO** — an order still REL/PCNF is, by design, not yet eligible for final variance settlement (only WIP).
+
+**Practitioner implication:** an FS that says "show me the true production cost variance for this order" needs you to first find out which event-based processing key / order-type-dependent parameter the order type carries — under 3F0 the numbers are already near-real-time in ACDOCA; under (deprecated) BEI they only exist after the period-end job chain runs. Don't design a report against the wrong cost model's tables.
+
+## 6. Production Order vs Process Order at Execution — Operation vs Phase
+
+Both order types are confirmed with the same underlying mechanics (§1–§5), but their execution granularity differs structurally, which matters for FS/TS scoping between this skill and [Skill: sap-process-manufacturing-process-execution]:
+- **Production order** (routing-based, this skill/BJ5): the unit of confirmation is the **operation**, executed at a **work center**; components attach to operations via the BOM/routing component assignment.
+- **Process order** (master-recipe-based, process manufacturing): the unit of confirmation is the **phase** within an operation, executed at a **resource** (primary resource = the processing unit that carries out the phase; secondary resources = additional means/personnel attached to a phase). The master recipe additionally controls things with no discrete-order equivalent: whether a phase posts a goods issue only when the *last* phase is confirmed, and how co-/by-product apportionment (equivalence numbers vs. net-realizable-value method) works.
+- Mass-processing/confirmation transactions (mass confirmation lists, confirmation types "enter confirmation against order/time ticket/time event") work identically for both order categories — the same list types and layouts apply to production and process orders, so tooling/training does not need to differ much even though the underlying master data (routing+work center vs. master recipe+resource) does.
+
+**Practitioner implication:** if an FS's shop floor talks about "steps within a step" (e.g., heating, then mixing, then cooling, all under one operation) or co-product yields needing apportionment, that is phase-level process-order territory — hand it to [Skill: sap-process-manufacturing-process-execution], don't force it into a production-order/operation model.
+
+## Sources
+Full citations for this deep-dive: `references/sources-deep-dive.md`.

@@ -1,0 +1,12 @@
+[{"sheetName":"Order_SO0001","data":{
+ "logo":"data:image/png;base64,iVBORw0KGgo=",
+ "companyName":"Cong ty ABC","companyAddress":"Ha Noi","companyPhone":"024-1234","conpanyTax":"0101234567",
+ "printedUser":"DUCK","printedDate":"18.09.2026","printedTime":"10:00:00",
+ "soId":"SO0001","parId":"C1","parName":"Khach hang A","storeId":"ST1","storeName":"Store 1",
+ "orderStatus":"Released","invoiceNumber":"INV-1","totalPrice":1500.0,"currency":"VND",
+ "items":[
+  {"rowType":"L1","matType":"FERT"},
+  {"storeName":"Store 1","matId":"M1","matName":"Mat 1","quantity":2,"baseUnit":"EA","netPrice":100,"netAmount":200},
+  {"storeName":"Store 1","matId":"M2","matName":"Mat 2","quantity":3,"baseUnit":"EA","netPrice":100,"netAmount":300},
+  {"rowType":"L2","matType":"FERT","netAmount":500}
+ ]}}]

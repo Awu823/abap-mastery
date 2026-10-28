@@ -1,0 +1,132 @@
+# Program → Spec — Workflow Steps
+
+Referenced by `SKILL.md`. Follow these 7 steps (Step 0 through Step 6) whenever the skill runs.
+
+**Step 0 — Socratic interview** (see `Socratic_Scope_Narrowing` section in `SKILL.md`)
+Default opener: issue ONE bundled `AskUserQuestion` call with the four standard questions — **Audience / Format / Depth / Language** — in that exact order, with the "(Recommended)" option first. **Format is multi-select** (Markdown / HTML / Excel — any combination); the other three are single-select. Hold the answer as `formats[]`. This is MANDATORY whenever the target object is already present in `ARGUMENTS`; it replaces Rounds 2+3+5 in a single UI turn.
+Fall back to per-round questioning only when (a) the object is missing/ambiguous (run Round 1 first) or (b) the user picks L3/L4 in the bundle (run Round 4 scope-trimming after).
+Never skip entirely unless the user supplies `object=... depth=L2 format=md,html lang=ko` style fully-qualified arguments (`format` = comma-separated subset of `md`, `html`, `xlsx`).
+**User-edited spec** — when the user hands over a spec HTML saved from the page's edit mode (`{OBJECT}-v{ver}-{lang}-edited.html`), skip the interview and import it per [`edit-mode.md`](edit-mode.md) § Import: `node scripts/spec/md-to-html.mjs --import <edited.html> .sc4sap/specs/{OBJECT}-v{base}-{lang}.md` converts the page back to Markdown (only the blocks the reader changed are rewritten), writes the revision's `.md` (old file kept as `.bak`), replaced images, the changed flows into the image-spec, and the revision into history.json. Then re-run Step 3.5 images when `flows` reports written flows, and rebuild with `--same-version`. Keep the user's text and free graphs in every later change. An older page saved from the flow editor alone (no `spec-source` in the file) still imports with `node scripts/spec/flow-editor.mjs --import <edited.html> .sc4sap/specs/_img/{OBJECT}-{YYYYMMDD}.image-spec.json`.
+
+**Step 1 — Inventory** (auto, parallel MCP calls)
+- `SearchObject` — confirm object + sub-type
+- Metadata: `GetObjectInfo` — package, author, created/changed, transport
+
+**Step 1.5 — CBO inventory lookup** (auto)
+- Resolve `<PACKAGE>` from `GetObjectInfo` above.
+- Ask the user one question: "Which module does package `<PACKAGE>` belong to? (SD / MM / PP / PM / QM / WM / TM / TR / FI / CO / HCM / BW / PS / Ariba)" — only if the module cannot be derived from `.sc4sap/config.json` or the package's existing CBO folder.
+- Check `.sc4sap/cbo/<MODULE>/<PACKAGE>/inventory.json`.
+  - **Exists** → Load it. When the analyst describes data sources, tables, or helper calls in Step 3, annotate each one that matches an inventory entry with its CBO role + one-line business purpose (e.g., "writes to `ZSD_ORDER_LOG` — append-only sales-order processing log"). This turns opaque Z-references in the spec into named reusable assets.
+  - **Missing** → Print one line: "No CBO inventory at `.sc4sap/cbo/<MODULE>/<PACKAGE>/`. Run `/sc4sap:analyze-cbo-obj` first for richer spec annotations, or type `skip` to proceed."
+- Persist the loaded entries to `.sc4sap/specs/<OBJECT>/cbo-context.md` so sap-analyst and sap-writer consume it in Step 3.
+- Source:
+  - Report/Program: `GetProgFullCode` + `GetIncludesList` → iterate `GetInclude`
+  - Class: `ReadClass` (all sections) + `GetLocalDefinitions` / `GetLocalMacros` / `GetLocalTestClass` / `GetLocalTypes`
+  - Function Module: `ReadFunctionModule` + function group includes
+  - CDS: `ReadView` + `GetMetadataExtension`
+  - RAP: `Read BehaviorDefinition` + `Read BehaviorImplementation` + `Read ServiceDefinition` + `Read ServiceBinding`
+- Screens / GUI Status / Text Elements (if report / module pool): `GetScreensList`, `GetGuiStatusList`, `GetTextElement` with **`language: "E"`** (always English, whatever the spec `lang` — a program often has no text pool in the spec language; only if E returns nothing, retry without `language` for the logon language and note it in §Open Questions); then `GetGuiStatus` for each output-screen status, since its function codes are the PAI buttons, and `GetScreen` for **every** dynpro other than 1000 — its flow logic and fields are the source of each screen's PBO / PAI table and image (see [`alv-buttons-schema.md`](alv-buttons-schema.md) §1, §2.1). Never mark a screen element "inferred" without reading `GetScreen` first.
+- Message class texts (for § Message references): collect every `MESSAGE xNNN(class)` / `MESSAGE-ID` + `xNNN` in the source, then read their English texts from **T100** in one `GetSqlQuery` per class with an explicit field list — `SELECT ARBGB, MSGNR, TEXT FROM T100 WHERE SPRSL = 'E' AND ARBGB = '<class>' AND MSGNR IN ('015', '016', …)` (never `GetTableContents`: it is `SELECT *` with no WHERE, so it cannot reach one class in T100). On BASIS < 7.50 (ECC) `GetSqlQuery` is not available — then take the text from the source: a placeholder-only message (`&`, e.g. `MESSAGE s000 WITH 'Data not found!'`) is written with its `WITH` text, `S000 (Data not found!)`; any other class message is written `E015 (T100 not readable on this release)` and listed in §Open Questions. This is the only table read allowed in this skill — see `SKILL.md` § Data_Extraction_Safety.
+- Structural: `GetAbapAST`, `GetAbapSemanticAnalysis`
+- Enhancements (L3+): `GetEnhancements`, `GetEnhancementSpot`
+- Where-Used (L4 only — fixed scope): `GetWhereUsed` against the main object **plus each screen**; filter callers to customer namespace `Z*` / `Y*` only. Skip standard SAP and add-on namespaces.
+
+**Step 2 — Classify** (auto)
+- Object archetype: ALV report / batch job / BDC / FM wrapper / CDS view / RAP BO / enhancement impl / utility class
+- Drives which spec template is applied in Step 3.
+
+**Step 3 — Delegate to sap-analyst + sap-writer** (+ sap-critic on L4)
+
+Emit Phase Banner before each dispatch (see `SKILL.md` § Phase_Banner):
+
+```
+▶ phase=3.analyst · agent=sap-analyst · model=Opus 4.7
+▶ phase=3.writer · agent=sap-writer · model=<Haiku 4.5 for L1/L2 | Sonnet 4.6 override for L3/L4>
+▶ phase=3.critic (L4 only) · agent=sap-critic · model=Opus 4.7
+```
+
+- **sap-analyst** (Opus 4.7, frontmatter) extracts: business purpose, inputs (selection screen / importing params), outputs (ALV cols / exporting params / OData entity), data sources (tables + CDS + BAPIs), main logic narrative, error cases, authorization checks (`AUTHORITY-CHECK` statements). When `cbo-context.md` exists, the analyst cross-references every Z-object mentioned against the inventory and replaces opaque "Z-table" / "Z-class" labels with the inventory's documented role + business purpose. **The main-logic narrative MUST be business-first**: for each step state the business intent (what/why for a functional reader) and attach the ABAP mechanism (event / FORM / SELECT) as a secondary annotation — never an event-only list. Also emit a **business-step process flow** (the end-to-end business arc: 시작 → 조회조건 입력 → 데이터 조회 → 가공/결합 → 출력 → 상호작용 → 종료), distinct from the raw ABAP event order. When the output screen has buttons, inventory every PAI function code and ALV toolbar button, and return **one business flow per button that changes data or starts processing**, per [`alv-buttons-schema.md`](alv-buttons-schema.md) §1 and §3. The main flow stops at the ALV output.
+- **sap-writer** (Haiku 4.5 base; **`model: "sonnet"` override for L3/L4 depth** — longer narrative + deeper cross-reference + stronger consistency requirement) renders every selected format at the chosen depth + language: the `.md` when `formats[]` has `md` or `html` (HTML is converted from it in Step 4, never written separately), the two Excel JSON files when it has `xlsx`. For Excel, map the analyst's business-first narrative into Sheet 4 per [`spec-templates.md`](spec-templates.md) § Business-process narrative (Step text = business-first, `Event / FORM` = technical anchor, `processFlow[]` = business steps) and obey § Language consistency for every string.
+- **sap-critic** (Opus 4.7, frontmatter) gate (only if L4): verifies every claim cross-references a line range.
+
+**Message references.** Every message number the spec mentions — text symbols (`M07`, `E01` = `TEXT-M07`), message class numbers (`E015`, `ZSD01/015`), popup questions (`Q01`) — is written as **`CODE (English text)`**, e.g. `E01 (IR amount is different from SO.)`, `M07 (Already FD Done)`. This applies in prose, tables, numbered steps and flow-image `io` nodes alike, in every spec `lang` (the text is an SAP literal, so it stays English). Text symbols come from `GetTextElement` (E), class messages from T100 (E); fill `&1…&4` / `&` placeholders with a short hint (`E015 (Order & is locked)` → keep `&`). If a text is missing from the pool, write `Q02 (text not maintained)` and list it in §Open Questions. Never write a bare code.
+
+**Keep the split — only sap-writer (or the main thread) writes files.** sap-analyst has no `Write` tool: never dispatch it to "analyze and write" the spec; it returns findings as text. Every file (`.md`, `image-spec.json`, `tr.json`) is written with the `Write` tool, one call per file — never through Bash (heredoc, `cat >`, `echo >`, a Python script): long or non-ASCII text breaks shell quoting, and each failed retry re-emits the whole document. An agent without `Write` returns the content to its caller instead.
+
+**Step 3.5 — Draw screens**
+
+Both formats now render the SAME program-specific PNGs (Selection / ALV / Process Flow) from one `image-spec.json` — see [`spec-templates.md`](spec-templates.md) § Image Replacement for the schema (the `processFlow` graph form gives the branching `flowchart TD`). **Before writing `selection`, read [`selection-schema.md`](selection-schema.md)** and transcribe the selection screen 1:1 from source: every `BEGIN OF BLOCK` → a block, `PUSHBUTTON` → pushbutton item, each `RADIOBUTTON GROUP` → one radioGroup item, `FUNCTXT_nn` → toolbar. A `⚠ … legacy fields/optionFields` line from the render script means the image is missing controls — rewrite `selection` and re-render. Output-screen buttons go in `alv.screen` / `alv.toolbar` / `panes[].toolbar`, dynpro fields and push buttons in `alv.screen.fields`, every popup or further dynpro in `screens[]` (one image and one PBO / PAI table per screen), and their flows go in `buttonFlows` ([`alv-buttons-schema.md`](alv-buttons-schema.md) §2–§4). A `⚠ … button … has no buttonFlows entry` line means a flow is missing.
+
+- **Excel**: `build-spec.mjs` swaps the PNGs into the cloned template (Step 4 below).
+- **Markdown / HTML**: run `node scripts/spec/render-md-images.mjs <image-spec.json> .sc4sap/specs/_assets/{OBJECT}-{YYYYMMDD}-{lang}/` to write `selection.png` / `alv.png` / `flow.png`, then embed each with `![label](_assets/{OBJECT}-{YYYYMMDD}-{lang}/<file>.png)` in §3.2 (Selection), §3.3 (ALV), §4.1 (Process Flow). This gives MD the identical high-quality v12 imagery the xlsx ships.
+  - **Graceful degrade** (no headless browser → manifest slot `null`): fall back to an ASCII wireframe in a fenced code block for that slot (Selection from `PARAMETERS`/`SELECT-OPTIONS`, ALV from the field catalog, `?`/`!`-prefixed Mermaid `flowchart TD` for the flow). The Parameters / ALV tables are always emitted regardless.
+
+For objects without UI (pure class, FM, CDS, RAP without screens), skip the imagery — the Parameters table inside the Inputs section is enough.
+
+**Step 4 — Render**
+- **Markdown**: single `.md` with H2 sections per spec dimension, tables for selection-screen / tables / methods / exits, plus the three embedded PNGs from Step 3.5 (Selection §3.2 · ALV §3.3 · Process Flow §4.1). See [`spec-templates.md`](spec-templates.md) for the section skeleton. Assets live in `.sc4sap/specs/_assets/{OBJECT}-{YYYYMMDD}-{lang}/` and are referenced relatively so the `.md` + its `_assets/` subfolder stay portable together.
+
+- **File names (md / html)** — versioned like the manual: `.sc4sap/specs/{OBJECT}-v{ver}-{lang}.md` / `.html` plus `.sc4sap/specs/{OBJECT}-{lang}.history.json`. Get `{ver}` before the writer writes the `.md`: `node scripts/spec/md-to-html.mjs --next-version --history .sc4sap/specs/{OBJECT}-{lang}.history.json` (`1.0` for a first spec, +0.1 for a re-analysis; add `--major` when the user asks for a new major version). Full rules: [`edit-mode.md`](edit-mode.md).
+- **HTML** (when `formats[]` has `html`): after the `.md` is final, build the editable page
+  ```bash
+  node scripts/spec/md-to-html.mjs .sc4sap/specs/{OBJECT}-v{ver}-{lang}.md --editable --version {ver} --note "<what this version covers>"
+  ```
+  It writes `{OBJECT}-v{ver}-{lang}.html` next to the `.md` and the version's entry in history.json (cover card shows the version; a Revision History section closes the page). One self-contained file: the PNGs are inlined, Quill and the editor are inlined, only the Mermaid fallback loads from a CDN. The reader can edit the page and Save `…-edited.html` (see [`edit-mode.md`](edit-mode.md)). Keep the `.md` even when `md` was not selected — it is the page's source for imports and rebuilds (keep `_assets/` too).
+  **Editable flows** — `render-md-images.mjs` leaves `<flow>.graph.json` next to `flow.png` and every `flow-<n>-<CODE>.png`; the edit mode turns those images into flow editors (drag shapes, draw / reconnect arrows, add / delete steps, edit text) under the page's one Save. Never delete the `.graph.json` files.
+
+- **Excel (MANDATORY workflow — 양식 보존 + program-specific imagery, single entry point)**:
+
+  > **Why clone + image swap?** Geometry (styles / borders / fonts / column widths / row heights / drawings) comes from `asset/template_base.xlsx` clone — that's what prevents the old throwaway-driver drift. Per-program data flows in through TWO inputs: (1) a TR (translation) map that replaces the template's English strings, and (2) an image-spec that drives the per-program Selection / ALV / Process-Flow mockups. Both run on every Excel spec — no opt-in trigger keywords. sap-writer's job is to produce both JSON files; one helper does the rest.
+
+  Pipeline for each Excel-output spec:
+
+  1. **sap-writer produces TWO JSON files**:
+     - `.sc4sap/specs/_tr/{OBJECT}-{YYYYMMDD}.tr.json` — flat `{ "English key": "한국어 값" }` map. Schema + slot semantics in [`spec-templates.md`](spec-templates.md) § Excel — Template-clone.
+     - `.sc4sap/specs/_img/{OBJECT}-{YYYYMMDD}.image-spec.json` — `renderScreenImages()` argument: `{ selection: {fields:[…]}, alv: {columns:[…], sampleRows:[…]}, processFlow: [string,…], lang }`. Exact key names in [`spec-templates.md`](spec-templates.md) § Image Replacement § Programmatic. Schema mistakes (e.g. `field` instead of `name`, array sampleRows instead of objects) silently render empty PNGs — verify by inspecting the resulting ALV byte size (~12 KB normal, ~1 KB = empty grid).
+  2. **Run the single entry point**:
+     ```bash
+     node scripts/spec/build-spec.mjs <tr.json> <image-spec.json> <out.xlsx>
+     ```
+     Internally: `cloneTemplate(tr)` → `renderScreenImages(imageSpec)` → `swapImages(xlsxPath, …pngBuffers)`. Default output path is `.sc4sap/specs/{OBJECT}-{YYYYMMDD}-{lang}.xlsx`. Pass `-` for the image-spec argument to skip image rendering and ship the text-only spec with the template's generic mockups (rare — only when no per-program imagery makes sense).
+  3. **Verify the artifact** — output size ≈ 95–110 KB depending on PNG sizes. `unzip -l` lists `xl/sharedStrings.xml` + `xl/media/image1.png` + `image2.png` + `image3.png` + `xl/drawings/drawing3.xml` + `drawing4.xml`. Open in Excel and scan every sheet — geometry MUST match `asset/template_base.xlsx`, Sheet 3 shows the program-specific Selection + ALV, Sheet 4 shows the horizontal Process Flow under the heading.
+  3a. **Language gate (mandatory for ko/ja)** — `build-spec.mjs` prints either `language check OK` or `⚠ LANGUAGE MIX detected` with the list of leaked English strings (TR + image-spec). If the warning fires, patch the TR map / image-spec for every flagged item that is NOT a bare SAP identifier, then re-run until clean. Confirm Sheet 4 Step text reads business-first (not an ABAP-event list) per [`spec-templates.md`](spec-templates.md) § Business-process narrative.
+  4. **Cleanup** — leave both JSON files in `_tr/` and `_img/` for traceability. Remove only ephemeral files (HUD probes, smoke tests).
+
+  **Graceful degrade** — when no headless browser is on PATH (Chrome / Edge / Chromium not installed), `renderScreenImages` returns `null` per slot and `swapImages` skips them. The xlsx ends with template generic mockups on Sheet 3 and a blank Sheet 4 drawing — never crashes.
+
+  **Zero external npm dependencies** — `build-spec.mjs` / `template-clone.mjs` / `image-swap.mjs` / `xlsx-zip.mjs` use only `node:fs` / `node:zlib` / `node:path` / `node:url`. Image rendering uses `screen-image-renderer.mjs` which shells out to a system headless browser; no npm modules.
+
+  **Sheet order is fixed by `asset/template_base.xlsx`** — clone never reorders. The template ships with:
+  1. `프로그램 개요` / Program Overview — Field/Value metadata (17 rows)
+  2. `데이터 모델` / Data Model — Table/Access/Key Fields/Join Type/Notes (4 table slots + trailer)
+  3. `입력 및 화면` / Inputs & Screens — Parameters (5 slots) + 5 warning rows + image anchors at C4 (Selection) / C19 (ALV)
+  4. `처리 로직` / Processing Logic — #/Event/Step (12 step slots) + Process Flow Chart heading at B18 + horizontal flow image at B19
+  5. `출력` / Output — Order/Field/Description/Length/Edit/Hidden (10 column slots)
+  6. `권한` / Authorizations — Check/Object/Level/Implemented?/Notes (5 rows)
+  7. `예외 처리` / Exceptions — Trigger/Mechanism/Message/Recovery (3 rows)
+
+  **Image anchor extents are dynamic** — each `<xdr:ext>` is computed from the supplied PNG's IHDR (`px × 9525` EMU) so PNGs render at native aspect ratio without stretching. Sheet 3 anchors (drawing3.xml C4 + C19) are surgically updated by image name. Sheet 4 (drawing4.xml) is injected on demand because each program's flow chart differs (`xl/media/image3.png` + `<xdr:oneCellAnchor>` from B19 + `_rels/drawing4.xml.rels`).
+
+**Step 5 — Review loop**
+- Show a table of contents + first section inline.
+- Ask: "OK to finalize, or trim/expand a section?"
+- Each change edits the same `{OBJECT}-v{ver}-{lang}.md` and rebuilds the page in place: `node scripts/spec/md-to-html.mjs .sc4sap/specs/{OBJECT}-v{ver}-{lang}.md --editable --same-version` (the review loop never adds a version).
+- On confirm → write one file per selected format (`.md` / `.html` / `.xlsx`) → go to Step 6 (or print every absolute path and finish when `lang` is `en`).
+
+**Step 6 — English companion** (default, when `lang` ≠ `en`)
+
+Every spec also ships in English, in the same formats, so global teams, auditors and offshore developers read the same content. It runs after Step 5 so review changes are in it. Skip it only when the user says so ("no English version").
+
+```
+▶ phase=6.translate (English spec) · agent=sc4sap:sap-writer · model=Sonnet (override)
+```
+
+- The writer reads the final `{lang}` files and writes their English twins (one `Write` call per file), never re-analysing the source:
+  - `md` / `html` → `.sc4sap/specs/{OBJECT}-v{ver}-en.md` (the same `{ver}` as the first language), image links pointing at `_assets/{OBJECT}-{YYYYMMDD}-en/`
+  - images (any format) → `.sc4sap/specs/_img/{OBJECT}-{YYYYMMDD}-en.image-spec.json` with `lang: "en"`
+  - `xlsx` → `.sc4sap/specs/_tr/{OBJECT}-{YYYYMMDD}-en.tr.json` (same keys, English values)
+- Translate every prose string: headings, narrative, table cells, selection labels / notes, ALV headers, pane titles, flow node and edge labels (`예`/`아니오` → `Yes`/`No`), button-flow labels, `processFlow[]`. Keep unchanged: SAP identifiers, T-Codes, function codes, table / field / class names, code blocks, line references, `CODE (English text)` message references (already English), `sampleRows` data codes, and every structural key — `screens`, anchors, node `id`s, edges, `lane`, and a free graph's `x` / `y` / sides (the user's layout stays; only labels change).
+- Then run Step 3.5 / Step 4 on the English files exactly as for the first language: `render-md-images.mjs` into `_assets/{OBJECT}-{YYYYMMDD}-en/`, `node scripts/spec/md-to-html.mjs .sc4sap/specs/{OBJECT}-v{ver}-en.md --editable --version {ver} --note "<the same note in English>"` — the English page keeps its own history, `{OBJECT}-en.history.json`, mirroring the first language's versions — and `build-spec.mjs <en.tr.json> <en.image-spec.json> .sc4sap/specs/{OBJECT}-{YYYYMMDD}-en.xlsx`.
+- Check: no Hangul / Kana / CJK left in any English file (`grep -P '[\x{AC00}-\x{D7AF}\x{3040}-\x{30FF}\x{4E00}-\x{9FFF}]'`) except SAP texts shown as SAP shows them; fix and re-render until clean.
+- A user-edited page imported later (Step 0 **User-edited spec**) changes the language of the page it came from and adds a version there; carry the same edits (text, rows, replaced images, flow positions) into the other language's `.md` / image-spec — translated, never re-analysed — and build it with `--version` set to the new version and the revision's note in that language. See [`edit-mode.md`](edit-mode.md) § English companion.
+- Finally print every absolute path of both languages.

@@ -1,0 +1,137 @@
+{
+  "abap_versions": [
+    {
+      "version": "700",
+      "latest_support": null,
+      "product": "SAP NetWeaver 7.0 / ECC 6.0 EHP0-EHP3",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": "NetWeaver 7.0 独立版本已停止支持，但 ECC 应用层仍在维护"
+    },
+    {
+      "version": "701",
+      "latest_support": null,
+      "product": "SAP EHP1 for NetWeaver 7.0 / ECC 6.0 EHP4",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "702",
+      "latest_support": null,
+      "product": "SAP EHP2 for NetWeaver 7.0 / ECC 6.0 EHP5",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "710",
+      "latest_support": null,
+      "product": "SAP NetWeaver PI 7.1",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": "仅 Process Integration 场景"
+    },
+    {
+      "version": "711",
+      "latest_support": null,
+      "product": "SAP EHP1 for NW PI 7.1",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "730",
+      "latest_support": null,
+      "product": "SAP NetWeaver 7.3",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "731",
+      "latest_support": null,
+      "product": "SAP EHP1 for NetWeaver 7.3 / ECC 6.0 EHP6",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "740",
+      "latest_support": null,
+      "product": "SAP NetWeaver 7.4 / ECC 6.0 EHP7",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": null
+    },
+    {
+      "version": "750",
+      "latest_support": null,
+      "product": "SAP NetWeaver 7.5 / ECC 6.0 EHP8",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": "经典 NetWeaver 最后一个独立版本"
+    },
+    {
+      "version": "751",
+      "latest_support": null,
+      "product": "NW AS ABAP 7.51 Innovation Package",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": "过渡版本，对应 S/4HANA 1511 的技术底座"
+    },
+    {
+      "version": "752",
+      "latest_support": null,
+      "product": "NW AS ABAP 7.52",
+      "kernel_type": "For NetWeaver/Ecc",
+      "remarks": "过渡版本，对应 S/4HANA 1709 的技术底座；NetWeaver AS ABAP 最后一个版本"
+    },
+    {
+      "version": "7.53 (75A)",
+      "latest_support": null,
+      "product": "S/4HANA 1511",
+      "kernel_type": "For SAP HANA",
+      "remarks": "首个 S/4HANA 版本，仅限 HANA"
+    },
+    {
+      "version": "7.54 (75B)",
+      "latest_support": null,
+      "product": "S/4HANA 1610",
+      "kernel_type": "For SAP HANA",
+      "remarks": null
+    },
+    {
+      "version": "7.55 (75C)",
+      "latest_support": null,
+      "product": "S/4HANA 1709",
+      "kernel_type": "For SAP HANA",
+      "remarks": null
+    },
+    {
+      "version": "7.56 (75D)",
+      "latest_support": null,
+      "product": "S/4HANA 1809",
+      "kernel_type": "For SAP HANA",
+      "remarks": "ABAP Platform 1809"
+    },
+    {
+      "version": "7.57 (75E)",
+      "latest_support": null,
+      "product": "S/4HANA 1909",
+      "kernel_type": "For SAP HANA",
+      "remarks": "ABAP Platform 1909"
+    },
+    {
+      "version": "7.58 (75F)",
+      "latest_support": null,
+      "product": "S/4HANA 2020",
+      "kernel_type": "For SAP HANA",
+      "remarks": "ABAP Platform 2020"
+    },
+    {
+      "version": "7.59 (75G)",
+      "latest_support": null,
+      "product": "S/4HANA 2021",
+      "kernel_type": "For SAP HANA",
+      "remarks": "ABAP Platform 2021"
+    },
+    {
+      "version": "7.60+",
+      "latest_support": "X",
+      "product": "S/4HANA 2022 及以后",
+      "kernel_type": "For SAP HANA",
+      "remarks": "版本号随 S/4HANA 发布年份演进"
+    }
+  ]
+}

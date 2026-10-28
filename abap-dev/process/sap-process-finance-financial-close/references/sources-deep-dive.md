@@ -1,0 +1,26 @@
+# Sources — deep-dive.md (J58, period-end closing — functional consulting depth)
+
+- SAP Help — Fiscal Year and Fiscal Year Variant: https://help.sap.com/docs/SAP_S4HANA_CLOUD/6b39bd1d0e5e4099a5b65d835c29c696/7353d7531a4d424de10000000a174cb4.html
+- SAP Help — Posting Periods: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/6810ced61ea149dd93e6c48ccfe68a5f.html
+- SAP Help — Posting Period Variants: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/979f873885bd40988497c3129ff870c0.html
+- SAP Help — Alternative Fiscal Year Variant: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/9dda2d38e0e74490a99dcaf5b5c678f3.html
+- SAP Help — Changing the Default Fiscal Year Variant: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/ab27e4be7cb04e4bb292dff2987f25ba.html
+- SAP Help — Manage Posting Periods: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/98bd1b5825b0a107e10000000a441470.html
+- SAP Help — Opening and Closing Posting Periods: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/a11940e4f97143d98a82e4741827e580.html
+- SAP Help — Authorizations for Posting Periods: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/060dd0031d924b80aeab4ce147edc6d6.html
+- SAP Help — How to Create an Authorization Group in the Manage Posting Period Variants App: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/7d370946715c4626a6056b76ca64b585.html
+- SAP Help — GR/IR Account Maintenance: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0e602d466b99490187fcbb30d1dc897c/127c620621ee43a3a2e6e26608039796.html
+- SAP Help — Clear GR/IR Clearing Account: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0e602d466b99490187fcbb30d1dc897c/72256b54f94c8f4ce10000000a4450e5.html
+- SAP Help — Machine Learning Service (GR/IR reconciliation): https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/0aa06061458c488d906d05ca9bf1b245.html
+- SAP Help — Accruals Management: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/3c245920e1d2420ea7ae3bb37af21ef8.html
+- SAP Help — Foreign Currency Valuation: https://help.sap.com/docs/SAP_S4HANA_CLOUD/0fa84c9d9c634132b7c4abb9ffdd8f06/8450d7531a4d424de10000000a174cb4.html
+- SAP Help — Recommendation to Use Advanced Valuation in Financial Accounting Instead of Classic Valuations: https://help.sap.com/docs/SAP_S4HANA_CLOUD/ee9ee0ca4c3942068ea584d2f929b5b1/53db3863a1724dc0a7cc319805c1d426.html
+- SAP Help — Jobs Templates for Period-End Activities in Product Cost by Order (WIP/Variance Calculation): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/b4d44b219bd84be09e091dc54f752c53.html
+- SAP Help — 3F0: Production Costs - Event-Based (Recommended): https://help.sap.com/docs/SAP_S4HANA_CLOUD/4032610758dc437089f0c28320eec93f/5298d94893d14aac8472fbc4ac1075ea.html
+- SAP Help — Check of Prerequisites for Year-End Closing in G/L: Fiscal Year Must be Closed in Asset Accounting: https://help.sap.com/docs/SAP_S4HANA_CLOUD/ee9ee0ca4c3942068ea584d2f929b5b1/7f93d43e368449848e91c0f1c81219f8.html
+- SAP Help — Year-End Closing Asset Accounting (Cross-Company Code and Ledger): https://help.sap.com/docs/SAP_S4HANA_CLOUD/3e5fcf2c768746049b5627bd5a42f720/e296bfa945ce4cde867d22b6fefd5a1b.html
+- SAP Help — Depreciation Posting Run: https://help.sap.com/docs/SAP_S4HANA_CLOUD/3e5fcf2c768746049b5627bd5a42f720/0d357657a11a0522e10000000a44147b.html
+- SAP Help — Process Closing Tasks App as Part of SAP S/4HANA Cloud: https://help.sap.com/docs/SAP_S4HANA_CLOUD/ee9ee0ca4c3942068ea584d2f929b5b1/54b6d91173d54b7281d1970dfeba4b25.html
+- SAP Help — Define Closing Tasks App as Part of SAP S/4HANA Cloud: https://help.sap.com/docs/SAP_S4HANA_CLOUD/ee9ee0ca4c3942068ea584d2f929b5b1/1ae3f6577b9b47ebbfde0f3f7b50af83.html
+- SAP Help — [Announcement] Upcoming Deprecation of the Approve Closing Tasks App as Part of SAP S/4HANA Cloud (AFC migration context): https://help.sap.com/docs/SAP_S4HANA_CLOUD/085edb30fb3d413da552832f3d5c01c0/474aa84806334d4ba3928d535e0300de.html
+- SAP Community — Unify your close: task orchestration with SAP Advanced Financial Closing and SAP Central Finance: https://community.sap.com/t5/financial-management-blog-posts-by-sap/unify-your-close-task-orchestration-with-sap-advanced-financial-closing-and/ba-p/14274476
