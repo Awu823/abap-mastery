@@ -57,6 +57,10 @@ description: |
 ### abap-dev/productivity/ — Workflow helpers (6)
 `activation-guard` · `caveman` · `document-markdown-converter` · `grill-me` · `handoff` · `scratchpad`
 
+### abap-dev/workflows/ — Orchestration (1)
+`abap-workflows` — end-to-end pipelines chaining sub-skills for FS→Fiori (A), RAP greenfield (B),
+quality & release gate (C), and ABAP Cloud migration (D), each phase gate-checked.
+
 ### code-review/ — Code review & delivery gates (5)
 `abap-code-review` · `abap-guardian` (alternative implementation) · `sap-adt-cli` · `sap-integration-wiki` ·
 `sap-transport-gate`
@@ -90,6 +94,7 @@ description: |
 | Business events / eventing | `abap-dev/core/rap-business-events` |
 | Released classes lookup | `abap-dev/core/released-abap-classes` |
 | ABAP SQL / AMDP / CTE | `abap-dev/core/abap-sql-amdp` |
+| Multi-step / end-to-end delivery | `abap-dev/workflows/abap-workflows` (workflow A–D) |
 | FS document → data model/UI/API/logic | `abap-dev/fs-analysis/*` |
 | SAP process knowledge (Finance/SCM/PP…) | `abap-dev/process/sap-process-*` |
 | Transport readiness / ADT CLI | `code-review/sap-transport-gate`, `code-review/sap-adt-cli` |

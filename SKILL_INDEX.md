@@ -88,6 +88,12 @@
 | handoff | Summarizes current progress, outstanding tasks, and crucial … |  |  |
 | scratchpad | Uses a persistent scratchpad file to plan, draft, and track … |  |  |
 
+## abap-dev\workflows (1)
+
+| Skill | 描述 | 许可 | 依赖 |
+|---|---|---|---|
+| abap-workflows | Orchestration workflows chaining sub-skills: FS->Fiori (A), RAP greenfield (B), quality & release gate (C), ABAP Cloud migration (D); phase-gated pipelines. | MIT |  |
+
 ## code-review\abap-code-review (1)
 
 | Skill | 描述 | 许可 | 依赖 |
